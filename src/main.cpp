@@ -85,6 +85,7 @@ static UINT g_cursorTexW = 0, g_cursorTexH = 0;
 
 static int  g_dstW = 0, g_dstH = 0;
 static bool g_running = true;
+static UINT g_exitKey = VK_ESCAPE;
 
 // =============================================================================
 // Utilitários
@@ -196,6 +197,16 @@ static LRESULT CALLBACK SelProc(HWND hw, UINT msg, WPARAM wp, LPARAM lp) {
                 MessageBoxW(hw, L"Origem e destino devem ser telas diferentes.", L"ScreenMirror", MB_OK | MB_ICONEXCLAMATION);
                 break;
             }
+
+            // Pega o atalho selecionado
+            HWND hCombo = GetDlgItem(hw, 103);
+            int curKey = (int)SendMessageW(hCombo, CB_GETCURSEL, 0, 0);
+            if (curKey == 0) g_exitKey = VK_ESCAPE;
+            else if (curKey == 1) g_exitKey = VK_F4;
+            else if (curKey == 2) g_exitKey = VK_F12;
+            else if (curKey == 3) g_exitKey = VK_END;
+            else if (curKey == 4) g_exitKey = VK_HOME;
+
             g_srcIdx = s; g_dstIdx = d; g_selOk = true;
             DestroyWindow(hw);
         }
@@ -228,8 +239,8 @@ static bool ShowSelectionUI(HINSTANCE hInst) {
     wc.lpszClassName = L"SMSel";
     RegisterClassExW(&wc);
 
-    int winW = 640;
-    int winH = 480;
+    int winW = 660;
+    int winH = 540;
     int screenW = GetSystemMetrics(SM_CXSCREEN);
     int screenH = GetSystemMetrics(SM_CYSCREEN);
 
@@ -250,19 +261,34 @@ static bool ShowSelectionUI(HINSTANCE hInst) {
         return hL;
     };
 
-    CreateLbl(L"1. SELECIONE A ORIGEM (Capturar desta tela):", 25, 20, 280, 20);
-    CreateLbl(L"2. SELECIONE O DESTINO (Exibir nesta tela):", 335, 20, 280, 20);
+    CreateLbl(L"1. SELECIONE A ORIGEM (Capturar desta tela):", 25, 20, 300, 20);
+    CreateLbl(L"2. SELECIONE O DESTINO (Exibir nesta tela):", 335, 20, 300, 20);
 
     // Listas
     g_hSrcList = CreateWindowExW(0, L"LISTBOX", nullptr,
         WS_CHILD | WS_VISIBLE | LBS_NOTIFY | WS_VSCROLL | WS_BORDER,
-        25, 45, 280, 320, hw, nullptr, hInst, nullptr);
+        25, 45, 300, 320, hw, nullptr, hInst, nullptr);
     g_hDstList = CreateWindowExW(0, L"LISTBOX", nullptr,
         WS_CHILD | WS_VISIBLE | LBS_NOTIFY | WS_VSCROLL | WS_BORDER,
-        335, 45, 280, 320, hw, nullptr, hInst, nullptr);
+        335, 45, 300, 320, hw, nullptr, hInst, nullptr);
 
     SendMessageW(g_hSrcList, WM_SETFONT, (WPARAM)g_hFont, TRUE);
     SendMessageW(g_hDstList, WM_SETFONT, (WPARAM)g_hFont, TRUE);
+
+    // Atalho
+    CreateLbl(L"Atalho de Saída:", 25, 385, 100, 20);
+    HWND hCombo = CreateWindowExW(0, L"COMBOBOX", nullptr,
+        WS_CHILD | WS_VISIBLE | CBS_DROPDOWNLIST | WS_VSCROLL,
+        130, 382, 100, 200, hw, (HMENU)103, hInst, nullptr);
+    SendMessageW(hCombo, WM_SETFONT, (WPARAM)g_hFont, TRUE);
+    SendMessageW(hCombo, CB_ADDSTRING, 0, (LPARAM)L"ESC");
+    SendMessageW(hCombo, CB_ADDSTRING, 0, (LPARAM)L"F4");
+    SendMessageW(hCombo, CB_ADDSTRING, 0, (LPARAM)L"F12");
+    SendMessageW(hCombo, CB_ADDSTRING, 0, (LPARAM)L"END");
+    SendMessageW(hCombo, CB_ADDSTRING, 0, (LPARAM)L"HOME");
+    SendMessageW(hCombo, CB_SETCURSEL, 0, 0);
+
+    CreateLbl(L"Dica: Durante o espelhamento, o atalho escolhido fecha o programa.", 25, 415, 500, 20);
 
     // Popular listas
     RefreshDisplayList(hw);
@@ -275,9 +301,9 @@ static bool ShowSelectionUI(HINSTANCE hInst) {
         return hB;
     };
 
-    CreateBtn(L"Iniciar Espelhamento", 25, 385, 200, 40, 100, true);
-    CreateBtn(L"Atualizar Lista", 235, 385, 120, 40, 102);
-    CreateBtn(L"Sair", 495, 385, 120, 40, 101);
+    CreateBtn(L"▶ Iniciar Espelhamento", 25, 445, 200, 45, 100, true);
+    CreateBtn(L"Atualizar Lista", 235, 445, 120, 45, 102);
+    CreateBtn(L"Sair", 515, 445, 120, 45, 101);
 
     ShowWindow(hw, SW_SHOW);
     UpdateWindow(hw);
@@ -298,7 +324,7 @@ static bool ShowSelectionUI(HINSTANCE hInst) {
 static HWND g_mirrorHwnd = nullptr;
 
 static LRESULT CALLBACK MirrorProc(HWND hw, UINT msg, WPARAM wp, LPARAM lp) {
-    if (msg == WM_KEYDOWN && wp == VK_ESCAPE) { g_running = false; PostQuitMessage(0); }
+    if (msg == WM_KEYDOWN && wp == g_exitKey) { g_running = false; PostQuitMessage(0); }
     if (msg == WM_DESTROY) { g_running = false; PostQuitMessage(0); }
     return DefWindowProcW(hw, msg, wp, lp);
 }
@@ -611,6 +637,9 @@ static void RunMirrorLoop(UINT srcAdapter, UINT srcOutput, RECT srcRect) {
 // WinMain
 // =============================================================================
 int WINAPI WinMain(HINSTANCE hInst, HINSTANCE, LPSTR, int) {
+    // Corrige bug de resoluções (DPI Awareness) para mostrar pixels reais
+    SetProcessDPIAware();
+
     HRESULT hr = CreateDXGIFactory1(IID_PPV_ARGS(&g_factory));
     if (FAILED(hr)) Fatal("CreateDXGIFactory1 failed", hr);
 
