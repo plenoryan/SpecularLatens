@@ -6,11 +6,23 @@ Captura qualquer monitor (incluindo displays virtuais como VDD) e exibe em outro
 
 ---
 
+## 🎮 Caso de Uso: Simulando Super Resolução (VSR / DSR / DLSS)
+
+Este programa foi criado especificamente para facilitar a simulação de altas resoluções em monitores que não as suportam nativamente. 
+
+### O Fluxo:
+1.  **Tela Virtual:** Utilize um driver como o **VDD (Virtual Display Driver)** para criar uma tela virtual de alta resolução (ex: 4K) no seu sistema.
+2.  **Execução do Jogo:** Configure o seu jogo para rodar nesta tela virtual em 4K.
+3.  **Visualização:** Utilize o **ScreenMirror** para capturar essa tela virtual 4K e exibi-la em tempo real no seu monitor físico de menor resolução (ex: 1080p).
+4.  **Resultado:** Você consegue rodar o jogo em uma resolução muito maior, aproveitando o sampling e a fidelidade visual da Super Resolução, visualizando tudo no seu monitor principal com baixíssima latência.
+
+---
+
 ## 🚀 Download Direto
 
 Para usuários que não são desenvolvedores, baixe a versão pronta para uso abaixo:
 
-**[➔ Baixar ScreenMirror v1.0 (ZIP)](https://github.com/plenoryan/ScreenMirror/releases)**
+**[➔ Baixar ScreenMirror v2.0 (ZIP)](https://github.com/plenoryan/ScreenMirror/releases)**
 
 *(Basta baixar, extrair e rodar o ScreenMirror.exe)*
 

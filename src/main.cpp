@@ -245,7 +245,7 @@ static bool ShowSelectionUI(HINSTANCE hInst) {
     int screenH = GetSystemMetrics(SM_CYSCREEN);
 
     HWND hw = CreateWindowExW(0, L"SMSel",
-        L"ScreenMirror — Configuração de Espelhamento",
+        L"ScreenMirror v2.1 \u2014 Configura\u00E7\u00E3o de Espelhamento",
         WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU,
         (screenW - winW) / 2, (screenH - winH) / 2, winW, winH,
         nullptr, nullptr, hInst, nullptr);
@@ -256,7 +256,7 @@ static bool ShowSelectionUI(HINSTANCE hInst) {
 
     // Labels e estilo
     auto CreateLbl = [&](const wchar_t* txt, int x, int y, int w, int h) {
-        HWND hL = CreateWindowExW(0, L"STATIC", txt, WS_CHILD | WS_VISIBLE, x, y, w, h, hw, nullptr, hInst, nullptr);
+        HWND hL = CreateWindowExW(0, L"STATIC", txt, WS_CHILD | WS_VISIBLE | SS_LEFT, x, y, w, h, hw, nullptr, hInst, nullptr);
         SendMessageW(hL, WM_SETFONT, (WPARAM)g_hFont, TRUE);
         return hL;
     };
@@ -276,7 +276,7 @@ static bool ShowSelectionUI(HINSTANCE hInst) {
     SendMessageW(g_hDstList, WM_SETFONT, (WPARAM)g_hFont, TRUE);
 
     // Atalho
-    CreateLbl(L"Atalho de Saída:", 25, 385, 100, 20);
+    CreateLbl(L"Atalho de Sa\u00EDda:", 25, 385, 100, 20);
     HWND hCombo = CreateWindowExW(0, L"COMBOBOX", nullptr,
         WS_CHILD | WS_VISIBLE | CBS_DROPDOWNLIST | WS_VSCROLL,
         130, 382, 100, 200, hw, (HMENU)103, hInst, nullptr);
@@ -343,7 +343,7 @@ static void CreateMirrorWindow(HINSTANCE hInst, const DisplayInfo& dst) {
     RegisterClassExW(&wc);
 
     g_mirrorHwnd = CreateWindowExW(
-        WS_EX_TOPMOST, L"SMWnd", L"ScreenMirror",
+        WS_EX_TOPMOST, L"SMWnd", L"ScreenMirror v2.1",
         WS_POPUP,
         dst.rect.left, dst.rect.top, g_dstW, g_dstH,
         nullptr, nullptr, hInst, nullptr);
@@ -637,9 +637,8 @@ static void RunMirrorLoop(UINT srcAdapter, UINT srcOutput, RECT srcRect) {
 // WinMain
 // =============================================================================
 int WINAPI WinMain(HINSTANCE hInst, HINSTANCE, LPSTR, int) {
-    // Corrige bug de resoluções (DPI Awareness) para mostrar pixels reais
-    SetProcessDPIAware();
-
+    // A conscientiza\u00E7\u00E3o de DPI agora est\u00E1 no Manifest para ser carregada antes do DXGI.
+    
     HRESULT hr = CreateDXGIFactory1(IID_PPV_ARGS(&g_factory));
     if (FAILED(hr)) Fatal("CreateDXGIFactory1 failed", hr);
 
