@@ -52,7 +52,7 @@ cl.exe /nologo /std:c++17 /O2 /W3 /EHsc ^
     /link ^
     /SUBSYSTEM:WINDOWS ^
     /ENTRY:WinMainCRTStartup ^
-    d3d11.lib dxgi.lib d3dcompiler.lib user32.lib gdi32.lib kernel32.lib comctl32.lib
+    d3d11.lib dxgi.lib d3dcompiler.lib user32.lib gdi32.lib kernel32.lib comctl32.lib advapi32.lib shell32.lib
 
 if errorlevel 1 (
     echo.

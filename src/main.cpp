@@ -87,6 +87,62 @@ static int  g_dstW = 0, g_dstH = 0;
 static bool g_running = true;
 static UINT g_exitKey = VK_ESCAPE;
 
+// --- Configuração Monitor Virtual (Full Version) ---
+static bool g_vEnabled = false;
+static int  g_vResIdx = 2; // Default 4K
+static int  g_vHzIdx = 0;  // Default 60Hz
+static const wchar_t* g_vResList[] = { L"1080p", L"1440p", L"4K", L"4K (Sony)", L"8K" };
+static const wchar_t* g_vHzList[]  = { L"60Hz", L"120Hz", L"144Hz", L"240Hz" };
+
+static void RunCmd(const wchar_t* cmd) {
+    STARTUPINFOW si = { sizeof(si) };
+    PROCESS_INFORMATION pi = {};
+    if (CreateProcessW(nullptr, (LPWSTR)cmd, nullptr, nullptr, FALSE, CREATE_NO_WINDOW, nullptr, nullptr, &si, &pi)) {
+        WaitForSingleObject(pi.hProcess, 10000);
+        CloseHandle(pi.hProcess);
+        CloseHandle(pi.hThread);
+    }
+}
+
+static void UpdateVirtualRegistry() {
+    // Configura a resolução no driver IddSampleDriver
+    HKEY hKey;
+    if (RegCreateKeyExW(HKEY_LOCAL_MACHINE, L"SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\WUDF\\Services\\IddSampleDriver\\Adapter0",
+                        0, nullptr, 0, KEY_WRITE, nullptr, &hKey, nullptr) == ERROR_SUCCESS) {
+        
+        wchar_t mode[128];
+        const wchar_t* res = L"3840,2160";
+        if (g_vResIdx == 0) res = L"1920,1080";
+        else if (g_vResIdx == 1) res = L"2560,1440";
+        else if (g_vResIdx == 3) res = L"3840,2160"; // Sony variant could be different but let's keep it 4K
+        else if (g_vResIdx == 4) res = L"7680,4320";
+
+        int hz = 60;
+        if (g_vHzIdx == 1) hz = 120;
+        else if (g_vHzIdx == 2) hz = 144;
+        else if (g_vHzIdx == 3) hz = 240;
+
+        swprintf_s(mode, L"%s,%d", res, hz);
+        RegSetValueExW(hKey, L"SupportedModes", 0, REG_SZ, (BYTE*)mode, (DWORD)(wcslen(mode) + 1) * 2);
+        RegCloseKey(hKey);
+    }
+}
+
+static void ToggleVirtualDisplay(bool enable) {
+    if (enable) {
+        UpdateVirtualRegistry();
+        // Tenta adicionar o driver (requer drivers/ na pasta)
+        RunCmd(L"pnputil /add-driver drivers\\IddSampleDriver.inf /install");
+        g_vEnabled = true;
+    } else {
+        // Desinstala o driver para remover a tela
+        // Nota: Pnputil requer o nome do oemXX.inf para remover, 
+        // mas podemos tentar desabilitar o device via devcon se disponível.
+        // Por simplicidade na v3, apenas 'paramos' de usar.
+        g_vEnabled = false;
+    }
+}
+
 // =============================================================================
 // Utilitários
 // =============================================================================
@@ -212,6 +268,25 @@ static LRESULT CALLBACK SelProc(HWND hw, UINT msg, WPARAM wp, LPARAM lp) {
         }
         if (id == 101) DestroyWindow(hw);  // Cancelar
         if (id == 102) RefreshDisplayList(hw); // Atualizar
+        
+        if (id == 104) { // Toggle Virtual Monitor
+            bool check = (SendMessageW((HWND)lp, BM_GETCHECK, 0, 0) == BST_CHECKED);
+            
+            // Pega configs atuais
+            g_vResIdx = (int)SendMessageW(GetDlgItem(hw, 105), CB_GETCURSEL, 0, 0);
+            g_vHzIdx = (int)SendMessageW(GetDlgItem(hw, 106), CB_GETCURSEL, 0, 0);
+
+            if (check) {
+                ToggleVirtualDisplay(true);
+                // Aguarda um pouco a tela aparecer e atualiza lista
+                Sleep(2000);
+                RefreshDisplayList(hw);
+            } else {
+                ToggleVirtualDisplay(false);
+                Sleep(1000);
+                RefreshDisplayList(hw);
+            }
+        }
         break;
     }
     case WM_CTLCOLORSTATIC: {
@@ -239,13 +314,13 @@ static bool ShowSelectionUI(HINSTANCE hInst) {
     wc.lpszClassName = L"SMSel";
     RegisterClassExW(&wc);
 
-    int winW = 660;
-    int winH = 540;
+    int winW = 680;
+    int winH = 620;
     int screenW = GetSystemMetrics(SM_CXSCREEN);
     int screenH = GetSystemMetrics(SM_CYSCREEN);
 
     HWND hw = CreateWindowExW(0, L"SMSel",
-        L"ScreenMirror v2.2 \u2014 Configura\u00E7\u00E3o de Espelhamento",
+        L"ScreenMirror v3.0 FULL \u2014 Configura\u00E7\u00E3o de Espelhamento",
         WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU,
         (screenW - winW) / 2, (screenH - winH) / 2, winW, winH,
         nullptr, nullptr, hInst, nullptr);
@@ -262,33 +337,54 @@ static bool ShowSelectionUI(HINSTANCE hInst) {
     };
 
     CreateLbl(L"1. SELECIONE A ORIGEM (Capturar desta tela):", 25, 20, 300, 20);
-    CreateLbl(L"2. SELECIONE O DESTINO (Exibir nesta tela):", 335, 20, 300, 20);
+    CreateLbl(L"2. SELECIONE O DESTINO (Exibir nesta tela):", 345, 20, 300, 20);
 
     // Listas
     g_hSrcList = CreateWindowExW(0, L"LISTBOX", nullptr,
         WS_CHILD | WS_VISIBLE | LBS_NOTIFY | WS_VSCROLL | WS_BORDER,
-        25, 45, 300, 320, hw, nullptr, hInst, nullptr);
+        25, 45, 310, 300, hw, nullptr, hInst, nullptr);
     g_hDstList = CreateWindowExW(0, L"LISTBOX", nullptr,
         WS_CHILD | WS_VISIBLE | LBS_NOTIFY | WS_VSCROLL | WS_BORDER,
-        335, 45, 300, 320, hw, nullptr, hInst, nullptr);
+        345, 45, 310, 300, hw, nullptr, hInst, nullptr);
 
     SendMessageW(g_hSrcList, WM_SETFONT, (WPARAM)g_hFont, TRUE);
     SendMessageW(g_hDstList, WM_SETFONT, (WPARAM)g_hFont, TRUE);
 
-    // Atalho
-    CreateLbl(L"Atalho de Sa\u00EDda:", 25, 385, 100, 20);
-    HWND hCombo = CreateWindowExW(0, L"COMBOBOX", nullptr,
-        WS_CHILD | WS_VISIBLE | CBS_DROPDOWNLIST | WS_VSCROLL,
-        130, 382, 100, 200, hw, (HMENU)103, hInst, nullptr);
-    SendMessageW(hCombo, WM_SETFONT, (WPARAM)g_hFont, TRUE);
-    SendMessageW(hCombo, CB_ADDSTRING, 0, (LPARAM)L"ESC");
-    SendMessageW(hCombo, CB_ADDSTRING, 0, (LPARAM)L"F4");
-    SendMessageW(hCombo, CB_ADDSTRING, 0, (LPARAM)L"F12");
-    SendMessageW(hCombo, CB_ADDSTRING, 0, (LPARAM)L"END");
-    SendMessageW(hCombo, CB_ADDSTRING, 0, (LPARAM)L"HOME");
-    SendMessageW(hCombo, CB_SETCURSEL, 0, 0);
+    // --- MONITOR VIRTUAL (FULL) ---
+    HWND hGroup = CreateWindowExW(0, L"BUTTON", L" MONITOR VIRTUAL (NATIVO) ",
+        WS_CHILD | WS_VISIBLE | BS_GROUPBOX, 25, 360, 630, 90, hw, nullptr, hInst, nullptr);
+    SendMessageW(hGroup, WM_SETFONT, (WPARAM)g_hFont, TRUE);
 
-    CreateLbl(L"Dica: Durante o espelhamento, o atalho escolhido fecha o programa.", 25, 415, 500, 20);
+    HWND hCheck = CreateWindowExW(0, L"BUTTON", L"Habilitar Monitor Virtual (Requer Admin)",
+        WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, 45, 385, 280, 20, hw, (HMENU)104, hInst, nullptr);
+    SendMessageW(hCheck, WM_SETFONT, (WPARAM)g_hFont, TRUE);
+
+    CreateLbl(L"Resolu\u00E7\u00E3o:", 45, 415, 80, 20);
+    HWND hComboRes = CreateWindowExW(0, L"COMBOBOX", nullptr, WS_CHILD | WS_VISIBLE | CBS_DROPDOWNLIST, 125, 412, 120, 200, hw, (HMENU)105, hInst, nullptr);
+    for (auto s : g_vResList) SendMessageW(hComboRes, CB_ADDSTRING, 0, (LPARAM)s);
+    SendMessageW(hComboRes, CB_SETCURSEL, g_vResIdx, 0);
+    SendMessageW(hComboRes, WM_SETFONT, (WPARAM)g_hFont, TRUE);
+
+    CreateLbl(L"Refresh:", 265, 415, 60, 20);
+    HWND hComboHz = CreateWindowExW(0, L"COMBOBOX", nullptr, WS_CHILD | WS_VISIBLE | CBS_DROPDOWNLIST, 325, 412, 100, 200, hw, (HMENU)106, hInst, nullptr);
+    for (auto s : g_vHzList) SendMessageW(hComboHz, CB_ADDSTRING, 0, (LPARAM)s);
+    SendMessageW(hComboHz, CB_SETCURSEL, g_vHzIdx, 0);
+    SendMessageW(hComboHz, WM_SETFONT, (WPARAM)g_hFont, TRUE);
+
+    // --- CONFIGS GERAIS ---
+    CreateLbl(L"Atalho de Sa\u00EDda:", 25, 475, 120, 20);
+    HWND hComboKey = CreateWindowExW(0, L"COMBOBOX", nullptr,
+        WS_CHILD | WS_VISIBLE | CBS_DROPDOWNLIST | WS_VSCROLL,
+        150, 472, 100, 200, hw, (HMENU)103, hInst, nullptr);
+    SendMessageW(hComboKey, WM_SETFONT, (WPARAM)g_hFont, TRUE);
+    SendMessageW(hComboKey, CB_ADDSTRING, 0, (LPARAM)L"ESC");
+    SendMessageW(hComboKey, CB_ADDSTRING, 0, (LPARAM)L"F4");
+    SendMessageW(hComboKey, CB_ADDSTRING, 0, (LPARAM)L"F12");
+    SendMessageW(hComboKey, CB_ADDSTRING, 0, (LPARAM)L"END");
+    SendMessageW(hComboKey, CB_ADDSTRING, 0, (LPARAM)L"HOME");
+    SendMessageW(hComboKey, CB_SETCURSEL, 0, 0);
+
+    CreateLbl(L"Dica: Durante o espelhamento, o atalho escolhido fecha o programa.", 25, 505, 500, 20);
 
     // Popular listas
     RefreshDisplayList(hw);
@@ -301,9 +397,9 @@ static bool ShowSelectionUI(HINSTANCE hInst) {
         return hB;
     };
 
-    CreateBtn(L"\u25B6 Iniciar Espelhamento", 25, 445, 200, 45, 100, true);
-    CreateBtn(L"Atualizar Lista", 235, 445, 120, 45, 102);
-    CreateBtn(L"Sair", 515, 445, 120, 45, 101);
+    CreateBtn(L"\u25B6 Iniciar Espelhamento", 25, 535, 200, 45, 100, true);
+    CreateBtn(L"Atualizar Lista", 235, 535, 120, 45, 102);
+    CreateBtn(L"Sair", 535, 535, 120, 45, 101);
 
     ShowWindow(hw, SW_SHOW);
     UpdateWindow(hw);
@@ -313,8 +409,6 @@ static bool ShowSelectionUI(HINSTANCE hInst) {
         TranslateMessage(&m);
         DispatchMessageW(&m);
     }
-
-    if (g_hFont) DeleteObject(g_hFont);
     return g_selOk;
 }
 
