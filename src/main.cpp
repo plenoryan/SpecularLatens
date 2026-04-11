@@ -245,7 +245,7 @@ static bool ShowSelectionUI(HINSTANCE hInst) {
     int screenH = GetSystemMetrics(SM_CYSCREEN);
 
     HWND hw = CreateWindowExW(0, L"SMSel",
-        L"ScreenMirror v2.1 \u2014 Configura\u00E7\u00E3o de Espelhamento",
+        L"ScreenMirror v2.2 \u2014 Configura\u00E7\u00E3o de Espelhamento",
         WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU,
         (screenW - winW) / 2, (screenH - winH) / 2, winW, winH,
         nullptr, nullptr, hInst, nullptr);
@@ -301,7 +301,7 @@ static bool ShowSelectionUI(HINSTANCE hInst) {
         return hB;
     };
 
-    CreateBtn(L"▶ Iniciar Espelhamento", 25, 445, 200, 45, 100, true);
+    CreateBtn(L"\u25B6 Iniciar Espelhamento", 25, 445, 200, 45, 100, true);
     CreateBtn(L"Atualizar Lista", 235, 445, 120, 45, 102);
     CreateBtn(L"Sair", 515, 445, 120, 45, 101);
 
@@ -343,7 +343,7 @@ static void CreateMirrorWindow(HINSTANCE hInst, const DisplayInfo& dst) {
     RegisterClassExW(&wc);
 
     g_mirrorHwnd = CreateWindowExW(
-        WS_EX_TOPMOST, L"SMWnd", L"ScreenMirror v2.1",
+        WS_EX_TOPMOST, L"SMWnd", L"ScreenMirror v2.2",
         WS_POPUP,
         dst.rect.left, dst.rect.top, g_dstW, g_dstH,
         nullptr, nullptr, hInst, nullptr);
