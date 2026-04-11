@@ -6,6 +6,16 @@ Captura qualquer monitor (incluindo displays virtuais como VDD) e exibe em outro
 
 ---
 
+## 🚀 Download Direto
+
+Para usuários que não são desenvolvedores, baixe a versão pronta para uso abaixo:
+
+**[➔ Baixar ScreenMirror v1.0 (ZIP)](https://github.com/plenoryan/ScreenMirror/releases)**
+
+*(Basta baixar, extrair e rodar o ScreenMirror.exe)*
+
+---
+
 ## ✅ Requisitos
 
 | Item | Requisito |
