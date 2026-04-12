@@ -108,8 +108,8 @@ static bool IsUserAdmin() {
 }
 
 static bool DriverFilesExist() {
-    return (GetFileAttributesW(L"drivers\\IddSampleDriver.inf") != INVALID_FILE_ATTRIBUTES &&
-            GetFileAttributesW(L"drivers\\IddSampleDriver.dll") != INVALID_FILE_ATTRIBUTES);
+    return (GetFileAttributesW(L"drivers\\MttVDD.inf") != INVALID_FILE_ATTRIBUTES &&
+            GetFileAttributesW(L"drivers\\MttVDD.dll") != INVALID_FILE_ATTRIBUTES);
 }
 
 static void RunCmd(const wchar_t* cmd) {
@@ -123,9 +123,9 @@ static void RunCmd(const wchar_t* cmd) {
 }
 
 static void UpdateVirtualRegistry() {
-    // Configura a resolução no driver IddSampleDriver
+    // Configura a resolu\u00E7\u00E3o no driver MttVDD
     HKEY hKey;
-    if (RegCreateKeyExW(HKEY_LOCAL_MACHINE, L"SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\WUDF\\Services\\IddSampleDriver\\Adapter0",
+    if (RegCreateKeyExW(HKEY_LOCAL_MACHINE, L"SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\WUDF\\Services\\MttVDD\\Adapter0",
                         0, nullptr, 0, KEY_WRITE, nullptr, &hKey, nullptr) == ERROR_SUCCESS) {
         
         wchar_t mode[256];
@@ -164,14 +164,11 @@ static void UpdateVirtualRegistry() {
 static void ToggleVirtualDisplay(bool enable) {
     if (enable) {
         UpdateVirtualRegistry();
-        // Tenta adicionar o driver (requer drivers/ na pasta)
-        RunCmd(L"pnputil /add-driver drivers\\IddSampleDriver.inf /install");
+        // Tenta adicionar o driver MttVDD (arquivos baixados na pasta drivers/)
+        RunCmd(L"pnputil /add-driver drivers\\MttVDD.inf /install");
         g_vEnabled = true;
     } else {
-        // Desinstala o driver para remover a tela
-        // Nota: Pnputil requer o nome do oemXX.inf para remover, 
-        // mas podemos tentar desabilitar o device via devcon se disponível.
-        // Por simplicidade na v3, apenas 'paramos' de usar.
+        // Para desativar, poder\u00EDamos usar devcon. Por agora apenas marcamos como desativado no app.
         g_vEnabled = false;
     }
 }
@@ -309,7 +306,7 @@ static LRESULT CALLBACK SelProc(HWND hw, UINT msg, WPARAM wp, LPARAM lp) {
                 break;
             }
             if (!DriverFilesExist()) {
-                MessageBoxW(hw, L"ERRO: Arquivos do driver n\u00E3o encontrados na pasta 'drivers'.\n\nPor favor, baixe o IddSampleDriver e coloque os arquivos .inf e .dll na pasta correta.", L"ScreenMirror", MB_OK | MB_ICONERROR);
+                MessageBoxW(hw, L"ERRO: Arquivos do driver MttVDD n\u00E3o encontrados na pasta 'drivers'.\n\nCertifique-se de que os arquivos extra\u00EDdos est\u00E3o na pasta drivers/ ao lado do execut\u00E1vel.", L"ScreenMirror", MB_OK | MB_ICONERROR);
                 SendMessageW((HWND)lp, BM_SETCHECK, BST_UNCHECKED, 0);
                 break;
             }
@@ -366,13 +363,13 @@ static bool ShowSelectionUI(HINSTANCE hInst) {
     wc.lpszClassName = L"SMSel";
     RegisterClassExW(&wc);
 
-    int winW = 680;
-    int winH = 620;
+    int winW = 740;
+    int winH = 680;
     int screenW = GetSystemMetrics(SM_CXSCREEN);
     int screenH = GetSystemMetrics(SM_CYSCREEN);
 
     HWND hw = CreateWindowExW(0, L"SMSel",
-        L"ScreenMirror v3.0 FULL \u2014 Configura\u00E7\u00E3o de Espelhamento",
+        L"ScreenMirror v3.2 FULL \u2014 Configura\u00E7\u00E3o de Espelhamento",
         WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU,
         (screenW - winW) / 2, (screenH - winH) / 2, winW, winH,
         nullptr, nullptr, hInst, nullptr);
@@ -388,54 +385,57 @@ static bool ShowSelectionUI(HINSTANCE hInst) {
         return hL;
     };
 
-    CreateLbl(L"1. SELECIONE A ORIGEM (Capturar desta tela):", 25, 20, 300, 20);
-    CreateLbl(L"2. SELECIONE O DESTINO (Exibir nesta tela):", 345, 20, 300, 20);
+    CreateLbl(L"1. SELECIONE A ORIGEM (Capturar desta tela):", 30, 20, 320, 20);
+    CreateLbl(L"2. SELECIONE O DESTINO (Exibir nesta tela):", 370, 20, 320, 20);
 
     // Listas
     g_hSrcList = CreateWindowExW(0, L"LISTBOX", nullptr,
         WS_CHILD | WS_VISIBLE | LBS_NOTIFY | WS_VSCROLL | WS_BORDER,
-        25, 45, 310, 300, hw, nullptr, hInst, nullptr);
+        30, 45, 330, 300, hw, nullptr, hInst, nullptr);
     g_hDstList = CreateWindowExW(0, L"LISTBOX", nullptr,
         WS_CHILD | WS_VISIBLE | LBS_NOTIFY | WS_VSCROLL | WS_BORDER,
-        345, 45, 310, 300, hw, nullptr, hInst, nullptr);
+        370, 45, 330, 300, hw, nullptr, hInst, nullptr);
 
     SendMessageW(g_hSrcList, WM_SETFONT, (WPARAM)g_hFont, TRUE);
     SendMessageW(g_hDstList, WM_SETFONT, (WPARAM)g_hFont, TRUE);
 
     // --- MONITOR VIRTUAL (FULL) ---
-    HWND hGroup = CreateWindowExW(0, L"BUTTON", L" MONITOR VIRTUAL (NATIVO) ",
-        WS_CHILD | WS_VISIBLE | BS_GROUPBOX, 25, 360, 630, 105, hw, nullptr, hInst, nullptr);
+    HWND hGroup = CreateWindowExW(0, L"BUTTON", L" MONITOR VIRTUAL (NATIVO - MttVDD) ",
+        WS_CHILD | WS_VISIBLE | BS_GROUPBOX, 30, 360, 670, 110, hw, nullptr, hInst, nullptr);
     SendMessageW(hGroup, WM_SETFONT, (WPARAM)g_hFont, TRUE);
 
     HWND hCheck = CreateWindowExW(0, L"BUTTON", L"Habilitar Monitor Virtual (Requer Admin)",
-        WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, 45, 385, 280, 20, hw, (HMENU)104, hInst, nullptr);
+        WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, 50, 385, 300, 20, hw, (HMENU)104, hInst, nullptr);
     SendMessageW(hCheck, WM_SETFONT, (WPARAM)g_hFont, TRUE);
 
-    CreateLbl(L"Resolu\u00E7\u00E3o:", 45, 415, 80, 20);
-    HWND hComboRes = CreateWindowExW(0, L"COMBOBOX", nullptr, WS_CHILD | WS_VISIBLE | CBS_DROPDOWNLIST, 125, 412, 100, 200, hw, (HMENU)105, hInst, nullptr);
+    CreateLbl(L"Resolu\u00E7\u00E3o:", 50, 420, 80, 20);
+    HWND hComboRes = CreateWindowExW(0, L"COMBOBOX", nullptr, WS_CHILD | WS_VISIBLE | CBS_DROPDOWNLIST, 140, 417, 100, 200, hw, (HMENU)105, hInst, nullptr);
     for (auto s : g_vResList) SendMessageW(hComboRes, CB_ADDSTRING, 0, (LPARAM)s);
     SendMessageW(hComboRes, CB_SETCURSEL, g_vResIdx, 0);
     SendMessageW(hComboRes, WM_SETFONT, (WPARAM)g_hFont, TRUE);
 
-    g_hVResCustomW = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", L"1920", WS_CHILD | ES_NUMBER, 230, 412, 50, 22, hw, nullptr, hInst, nullptr);
-    g_hVResCustomH = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", L"1080", WS_CHILD | ES_NUMBER, 285, 412, 50, 22, hw, nullptr, hInst, nullptr);
+    g_hVResCustomW = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", L"1920", WS_CHILD | ES_NUMBER, 250, 417, 55, 24, hw, nullptr, hInst, nullptr);
+    g_hVResCustomH = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", L"1080", WS_CHILD | ES_NUMBER, 310, 417, 55, 24, hw, nullptr, hInst, nullptr);
     SendMessageW(g_hVResCustomW, WM_SETFONT, (WPARAM)g_hFont, TRUE);
     SendMessageW(g_hVResCustomH, WM_SETFONT, (WPARAM)g_hFont, TRUE);
 
-    CreateLbl(L"Refresh:", 355, 415, 60, 20);
-    HWND hComboHz = CreateWindowExW(0, L"COMBOBOX", nullptr, WS_CHILD | WS_VISIBLE | CBS_DROPDOWNLIST, 415, 412, 100, 200, hw, (HMENU)106, hInst, nullptr);
+    CreateLbl(L"Refresh:", 385, 420, 60, 20);
+    HWND hComboHz = CreateWindowExW(0, L"COMBOBOX", nullptr, WS_CHILD | WS_VISIBLE | CBS_DROPDOWNLIST, 450, 417, 100, 200, hw, (HMENU)106, hInst, nullptr);
     for (auto s : g_vHzList) SendMessageW(hComboHz, CB_ADDSTRING, 0, (LPARAM)s);
     SendMessageW(hComboHz, CB_SETCURSEL, g_vHzIdx, 0);
     SendMessageW(hComboHz, WM_SETFONT, (WPARAM)g_hFont, TRUE);
 
-    g_hVHzCustom = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", L"60", WS_CHILD | ES_NUMBER, 520, 412, 40, 22, hw, nullptr, hInst, nullptr);
+    g_hVHzCustom = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", L"60", WS_CHILD | ES_NUMBER, 560, 417, 50, 24, hw, nullptr, hInst, nullptr);
     SendMessageW(g_hVHzCustom, WM_SETFONT, (WPARAM)g_hFont, TRUE);
 
+    // Esconde custom por padr\u00E3o
+    ShowWindow(g_hVResCustomW, SW_HIDE); ShowWindow(g_hVResCustomH, SW_HIDE); ShowWindow(g_hVHzCustom, SW_HIDE);
+
     // --- CONFIGS GERAIS ---
-    CreateLbl(L"Atalho de Sa\u00EDda:", 25, 495, 120, 20);
+    CreateLbl(L"Atalho de Sa\u00EDda:", 30, 500, 120, 20);
     HWND hComboKey = CreateWindowExW(0, L"COMBOBOX", nullptr,
         WS_CHILD | WS_VISIBLE | CBS_DROPDOWNLIST | WS_VSCROLL,
-        150, 492, 100, 200, hw, (HMENU)103, hInst, nullptr);
+        155, 497, 100, 200, hw, (HMENU)103, hInst, nullptr);
     SendMessageW(hComboKey, WM_SETFONT, (WPARAM)g_hFont, TRUE);
     SendMessageW(hComboKey, CB_ADDSTRING, 0, (LPARAM)L"ESC");
     SendMessageW(hComboKey, CB_ADDSTRING, 0, (LPARAM)L"F4");
@@ -444,12 +444,12 @@ static bool ShowSelectionUI(HINSTANCE hInst) {
     SendMessageW(hComboKey, CB_ADDSTRING, 0, (LPARAM)L"HOME");
     SendMessageW(hComboKey, CB_SETCURSEL, 0, 0);
 
-    CreateLbl(L"Dica: Durante o espelhamento, o atalho escolhido fecha o programa.", 25, 525, 500, 20);
+    CreateLbl(L"Dica: Durante o espelhamento, o atalho escolhido fecha o programa.", 30, 535, 500, 20);
 
     // Popular listas
     RefreshDisplayList(hw);
 
-    // Botões
+    // Bot\u00F5es
     auto CreateBtn = [&](const wchar_t* txt, int x, int y, int w, int h, int id, bool def = false) {
         HWND hB = CreateWindowExW(0, L"BUTTON", txt, WS_CHILD | WS_VISIBLE | (def ? BS_DEFPUSHBUTTON : BS_PUSHBUTTON),
                                   x, y, w, h, hw, (HMENU)id, hInst, nullptr);
@@ -457,9 +457,9 @@ static bool ShowSelectionUI(HINSTANCE hInst) {
         return hB;
     };
 
-    CreateBtn(L"\u25B6 Iniciar Espelhamento", 25, 555, 200, 45, 100, true);
-    CreateBtn(L"Atualizar Lista", 235, 555, 120, 45, 102);
-    CreateBtn(L"Sair", 535, 555, 120, 45, 101);
+    CreateBtn(L"\u25B6 Iniciar Espelhamento", 30, 575, 220, 50, 100, true);
+    CreateBtn(L"Atualizar Lista", 260, 575, 140, 50, 102);
+    CreateBtn(L"Sair", 560, 575, 140, 50, 101);
 
     ShowWindow(hw, SW_SHOW);
     UpdateWindow(hw);
