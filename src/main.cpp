@@ -26,11 +26,14 @@
 #include <cstdarg>
 #include <fstream>
 #include <chrono>
+#include <mutex>
 
 using Microsoft::WRL::ComPtr;
 
 // --- Debug Logging ---
+static std::mutex g_logMtx;
 static void Logn(const char* fmt, ...) {
+    std::lock_guard<std::mutex> lock(g_logMtx);
     FILE* f = nullptr;
     if (fopen_s(&f, "ScreenMirror_Debug.log", "a") == 0) {
         auto now = std::chrono::system_clock::now();
@@ -202,15 +205,28 @@ static void UpdateVirtualRegistry() {
 }
 
 static void ToggleVirtualDisplay(bool enable, HWND hNotify) {
-    if (g_vBusy) return;
+    if (g_vBusy) {
+        Logn("ToggleVirtualDisplay: Ignorado (g_vBusy=true)");
+        return;
+    }
+    
+    Logn("ToggleVirtualDisplay: Iniciando thread (enable=%d)...", enable);
     g_vBusy = true;
 
     std::thread([enable, hNotify]() {
         __try {
-            Logn("Thread VirtualMonitor: Inicido (enable=%d)", enable);
+            Logn("Thread VirtualMonitor: InicidO (enable=%d)", enable);
             if (enable) {
                 UpdateVirtualRegistry();
-                RunCmd(L"pnputil /add-driver drivers\\MttVDD.inf /install");
+                
+                wchar_t infPath[MAX_PATH];
+                GetFullPathNameW(L"drivers\\MttVDD.inf", MAX_PATH, infPath, nullptr);
+                Logn("Thread VirtualMonitor: Instalando driver de [%ls]...", infPath);
+
+                wchar_t cmd[512];
+                swprintf_s(cmd, L"pnputil /add-driver \"%ls\" /install", infPath);
+                RunCmd(cmd);
+                
                 g_vEnabled = true;
                 Logn("Thread VirtualMonitor: Aguardando 3s...");
                 Sleep(3000); 
@@ -224,6 +240,7 @@ static void ToggleVirtualDisplay(bool enable, HWND hNotify) {
             PostMessageW(hNotify, WM_COMMAND, 102, 0); 
         } __except(EXCEPTION_EXECUTE_HANDLER) {
             Logn("Thread VirtualMonitor: EXCECAO SEH OCORRIDA!");
+            g_vBusy = false;
         }
     }).detach();
 }
@@ -439,7 +456,7 @@ static bool ShowSelectionUI(HINSTANCE hInst) {
     int screenH = GetSystemMetrics(SM_CYSCREEN);
 
     HWND hw = CreateWindowExW(0, L"SMSel",
-        L"ScreenMirror v3.5 FULL \u2014 Configura\u00E7\u00E3o de Espelhamento",
+        L"ScreenMirror v3.6 FULL \u2014 Configura\u00E7\u00E3o de Espelhamento",
         WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU,
         (screenW - winW) / 2, (screenH - winH) / 2, winW, winH,
         nullptr, nullptr, hInst, nullptr);
@@ -567,7 +584,7 @@ static void CreateMirrorWindow(HINSTANCE hInst, const DisplayInfo& dst) {
     RegisterClassExW(&wc);
 
     g_mirrorHwnd = CreateWindowExW(
-        WS_EX_TOPMOST, L"SMWnd", L"ScreenMirror v3.5",
+        WS_EX_TOPMOST, L"SMWnd", L"ScreenMirror v3.6",
         WS_POPUP,
         dst.rect.left, dst.rect.top, g_dstW, g_dstH,
         nullptr, nullptr, hInst, nullptr);
@@ -903,14 +920,30 @@ static int WinMainInternal(HINSTANCE hInst) {
 }
 
 int WINAPI WinMain(HINSTANCE hInst, HINSTANCE, LPSTR, int) {
-    Logn("--- ScreenMirror v3.5 Iniciado ---");
-    int ret = 0;
-    __try {
-        ret = WinMainInternal(hInst);
-    } __except(EXCEPTION_EXECUTE_HANDLER) {
-        Logn("FATAL: SEH in WinMain! 0x%08X", GetExceptionCode());
-        MessageBoxW(nullptr, L"Erro fatal capturado. Veja o log para detalhes.", L"ScreenMirror CRASH", MB_OK | MB_ICONERROR);
+    Logn("--- ScreenMirror v3.6 Iniciado ---");
+    
+    while (true) {
+        g_running = true;
+        g_selOk = false;
+        
+        int ret = 0;
+        __try {
+            ret = WinMainInternal(hInst);
+        } __except(EXCEPTION_EXECUTE_HANDLER) {
+            Logn("FATAL: SEH in WinMain! 0x%08X", GetExceptionCode());
+            MessageBoxW(nullptr, L"Erro fatal capturado. Veja o log para detalhes.", L"ScreenMirror CRASH", MB_OK | MB_ICONERROR);
+            break;
+        }
+
+        // Se g_selOk for false, o usuário clicou em Cancelar ou Sair na UI.
+        // Se WinMainInternal retornou sem g_running estar false, algo estranho houve,
+        // mas o gatilho principal de retorno ao menu é g_running ter sido setado para false (via ESC).
+        if (!g_selOk) break; 
+        
+        Logn("Retornando ao menu principal...");
+        ResetGraphicsStack(); 
     }
+
     Logn("--- ScreenMirror Encerrado ---");
-    return ret;
+    return 0;
 }

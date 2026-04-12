@@ -1,0 +1,9 @@
+﻿ScreenMirror v3.5 FULL - ZERO-CRASH EDITION
+-------------------------------------------
+ESTA VERSÃO FOI BLINDADA PARA EVITAR TODOS OS CRASHES CONHECIDOS.
+
+NOVIDADES:
+----------
+1. BOTÃO 'INICIAR' BLINDADO: Impede inícios prematuros enquanto o hardware está sendo configurado.
+2. RESET GLOBAL DO DXGI: Reinicilização completa da pilha de hardware após deteção de novo monitor.
+3. LOGS DE SEGURANÇA: O arquivo 'ScreenMirror_Debug.log' registra tudo o que acontece.
