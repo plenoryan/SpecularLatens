@@ -22,7 +22,7 @@ Este programa foi criado especificamente para facilitar a simulação de altas r
 
 Para usuários que não são desenvolvedores, baixe a versão pronta para uso abaixo:
 
-**[➔ Baixar ScreenMirror v2.0 (ZIP)]([https://github.com/plenoryan/ScreenMirror/releases](https://github.com/plenoryan/ScreenMirror/releases/download/v2.2/ScreenMirror_v2.2.zip))**
+**[➔ Baixar ScreenMirror v2.2 (ZIP)]([https://github.com/plenoryan/ScreenMirror/releases/download/v2.2/ScreenMirror_v2.2.zip])**
 
 *(Basta baixar, extrair e rodar o ScreenMirror.exe)*
 
