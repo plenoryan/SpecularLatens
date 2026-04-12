@@ -13,10 +13,14 @@
 #include <d3d11.h>
 #include <dxgi1_2.h>
 #include <d3dcompiler.h>
+#include <shellapi.h>
+#include <shobjidl.h>
 #include <commctrl.h>
-#include <wrl/client.h>
-#include <vector>
 #include <string>
+#include <vector>
+#include <thread>
+#include <atomic>
+#include <wrl/client.h>
 #include <cstring>
 #include <cstdio>
 
@@ -89,6 +93,7 @@ static UINT g_exitKey = VK_ESCAPE;
 
 // --- Configuração Monitor Virtual (Full Version) ---
 static bool g_vEnabled = false;
+static std::atomic<bool> g_vBusy{ false };
 static int  g_vResIdx = 2; // Default 4K
 static int  g_vHzIdx = 0;  // Default 60Hz
 static const wchar_t* g_vResList[] = { L"1080p", L"1440p", L"4K", L"8K", L"Custom..." };
@@ -161,16 +166,28 @@ static void UpdateVirtualRegistry() {
     }
 }
 
-static void ToggleVirtualDisplay(bool enable) {
-    if (enable) {
-        UpdateVirtualRegistry();
-        // Tenta adicionar o driver MttVDD (arquivos baixados na pasta drivers/)
-        RunCmd(L"pnputil /add-driver drivers\\MttVDD.inf /install");
-        g_vEnabled = true;
-    } else {
-        // Para desativar, poder\u00EDamos usar devcon. Por agora apenas marcamos como desativado no app.
-        g_vEnabled = false;
-    }
+static void ToggleVirtualDisplay(bool enable, HWND hNotify) {
+    if (g_vBusy) return;
+    g_vBusy = true;
+
+    std::thread([enable, hNotify]() {
+        if (enable) {
+            UpdateVirtualRegistry();
+            // Tenta adicionar o driver MttVDD
+            RunCmd(L"pnputil /add-driver drivers\\MttVDD.inf /install");
+            g_vEnabled = true;
+            Sleep(2500); // Aguarda o Windows processar o hardware
+        } else {
+            // Por simplicidade marcamos desativado. 
+            // Para remoção real, pnputil exigiria o OEM#.inf específico.
+            g_vEnabled = false;
+            Sleep(1000);
+        }
+        
+        g_vBusy = false;
+        // Notifica a janela principal para atualizar a lista
+        PostMessageW(hNotify, WM_COMMAND, 102, 0); // 102 = Refresh
+    }).detach();
 }
 
 // =============================================================================
@@ -300,13 +317,18 @@ static LRESULT CALLBACK SelProc(HWND hw, UINT msg, WPARAM wp, LPARAM lp) {
         if (id == 102) RefreshDisplayList(hw); // Atualizar
         
         if (id == 104) { // Toggle Virtual Monitor
+            if (g_vBusy) {
+                SendMessageW((HWND)lp, BM_SETCHECK, g_vEnabled ? BST_CHECKED : BST_UNCHECKED, 0);
+                break;
+            }
+
             if (!IsUserAdmin()) {
                 MessageBoxW(hw, L"ERRO: Voc\u00EA precisa rodar como ADMINISTRADOR para gerenciar drivers de v\u00EDdeo.", L"ScreenMirror", MB_OK | MB_ICONERROR);
                 SendMessageW((HWND)lp, BM_SETCHECK, BST_UNCHECKED, 0);
                 break;
             }
             if (!DriverFilesExist()) {
-                MessageBoxW(hw, L"ERRO: Arquivos do driver MttVDD n\u00E3o encontrados na pasta 'drivers'.\n\nCertifique-se de que os arquivos extra\u00EDdos est\u00E3o na pasta drivers/ ao lado do execut\u00E1vel.", L"ScreenMirror", MB_OK | MB_ICONERROR);
+                MessageBoxW(hw, L"ERRO: Arquivos do driver MttVDD n\u00E3o encontrados na pasta 'drivers'.", L"ScreenMirror", MB_OK | MB_ICONERROR);
                 SendMessageW((HWND)lp, BM_SETCHECK, BST_UNCHECKED, 0);
                 break;
             }
@@ -317,15 +339,7 @@ static LRESULT CALLBACK SelProc(HWND hw, UINT msg, WPARAM wp, LPARAM lp) {
             g_vResIdx = (int)SendMessageW(GetDlgItem(hw, 105), CB_GETCURSEL, 0, 0);
             g_vHzIdx = (int)SendMessageW(GetDlgItem(hw, 106), CB_GETCURSEL, 0, 0);
 
-            if (check) {
-                ToggleVirtualDisplay(true);
-                Sleep(2000);
-                RefreshDisplayList(hw);
-            } else {
-                ToggleVirtualDisplay(false);
-                Sleep(1000);
-                RefreshDisplayList(hw);
-            }
+            ToggleVirtualDisplay(check, hw);
         }
         if (id == 105 || id == 106) { // ComboBox resolution or Hz changed
             int r = (int)SendMessageW(GetDlgItem(hw, 105), CB_GETCURSEL, 0, 0);
