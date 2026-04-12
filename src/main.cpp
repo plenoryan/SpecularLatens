@@ -142,21 +142,45 @@ static bool DriverFilesExist() {
             GetFileAttributesW(L"drivers\\MttVDD.dll") != INVALID_FILE_ATTRIBUTES);
 }
 
-static void RunCmd(const wchar_t* cmd) {
-    Logn("RunCmd: Executando [%ls]", cmd);
+static void RunCmdInternal(const wchar_t* cmd) {
+    wchar_t tempFile[MAX_PATH];
+    GetTempPathW(MAX_PATH, tempFile);
+    wcscat_s(tempFile, L"sm_trace.txt");
+
+    wchar_t fullCmd[1024];
+    swprintf_s(fullCmd, L"cmd.exe /c \"%ls > \"%ls\" 2>&1\"", cmd, tempFile);
+    
     STARTUPINFOW si = { sizeof(si) };
     PROCESS_INFORMATION pi = {};
-    wchar_t c[512];
-    wcscpy_s(c, cmd);
-    if (CreateProcessW(nullptr, c, nullptr, nullptr, FALSE, CREATE_NO_WINDOW, nullptr, nullptr, &si, &pi)) {
-        WaitForSingleObject(pi.hProcess, INFINITE);
+    if (CreateProcessW(nullptr, fullCmd, nullptr, nullptr, FALSE, CREATE_NO_WINDOW, nullptr, nullptr, &si, &pi)) {
+        WaitForSingleObject(pi.hProcess, 30000); 
         DWORD exitCode = 0;
         GetExitCodeProcess(pi.hProcess, &exitCode);
-        Logn("RunCmd: Concluido. ExitCode: %d", exitCode);
+        Logn("RunCmd: Processo encerrado. ExitCode: %d", exitCode);
         CloseHandle(pi.hProcess);
         CloseHandle(pi.hThread);
+
+        std::ifstream f(tempFile);
+        if (f.is_open()) {
+            std::string line;
+            Logn("--- Saida do Comando ---");
+            while (std::getline(f, line)) {
+                if (!line.empty()) Logn("  > %s", line.c_str());
+            }
+            Logn("--- Fim da Saida ---");
+            f.close();
+        }
+        DeleteFileW(tempFile);
     } else {
         Logn("RunCmd: FALHA ao criar processo. Error: %d", GetLastError());
+    }
+}
+
+static void RunCmd(const wchar_t* cmd) {
+    __try {
+        RunCmdInternal(cmd);
+    } __except(EXCEPTION_EXECUTE_HANDLER) {
+        Logn("RunCmd: EXCECAO SEH NO COMANDO!");
     }
 }
 
@@ -204,6 +228,50 @@ static void UpdateVirtualRegistry() {
     }
 }
 
+static void ToggleVirtualDisplayInternal(bool enable, HWND hNotify) {
+    Logn("Thread VirtualMonitor: InicidO (enable=%d)", enable);
+    if (enable) {
+        UpdateVirtualRegistry();
+        
+        wchar_t infPath[MAX_PATH];
+        GetFullPathNameW(L"drivers\\MttVDD.inf", MAX_PATH, infPath, nullptr);
+        
+        Logn("Thread VirtualMonitor: Instalando driver de [%ls]...", infPath);
+
+        wchar_t sysDir[MAX_PATH];
+        GetSystemDirectoryW(sysDir, MAX_PATH);
+        std::wstring pnp = sysDir;
+        if (pnp.find(L"SysWOW64") != std::wstring::npos) {
+            pnp = L"C:\\Windows\\Sysnative\\pnputil.exe";
+        } else {
+            pnp += L"\\pnputil.exe";
+        }
+
+        wchar_t cmd[1024];
+        swprintf_s(cmd, L"\"%ls\" /add-driver \"%ls\" /install", pnp.c_str(), infPath);
+        RunCmd(cmd);
+        
+        HKEY hCheck;
+        if (RegOpenKeyExW(HKEY_LOCAL_MACHINE, L"SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\WUDF\\Services\\MttVDD", 0, KEY_READ, &hCheck) == ERROR_SUCCESS) {
+            Logn("Thread VirtualMonitor: SUCESSO - Chave de servico encontrada.");
+            RegCloseKey(hCheck);
+            g_vEnabled = true;
+        } else {
+            Logn("Thread VirtualMonitor: AVISO - Chave de servico NAO encontrada apos pnputil.");
+            g_vEnabled = false;
+        }
+        Logn("Thread VirtualMonitor: Aguardando 3s...");
+        Sleep(3000); 
+    } else {
+        g_vEnabled = false;
+        Sleep(1000);
+    }
+    
+    g_vBusy = false;
+    Logn("Thread VirtualMonitor: Enviando PostMessage Refresh...");
+    PostMessageW(hNotify, WM_COMMAND, 102, 0); 
+}
+
 static void ToggleVirtualDisplay(bool enable, HWND hNotify) {
     if (g_vBusy) {
         Logn("ToggleVirtualDisplay: Ignorado (g_vBusy=true)");
@@ -215,29 +283,7 @@ static void ToggleVirtualDisplay(bool enable, HWND hNotify) {
 
     std::thread([enable, hNotify]() {
         __try {
-            Logn("Thread VirtualMonitor: InicidO (enable=%d)", enable);
-            if (enable) {
-                UpdateVirtualRegistry();
-                
-                wchar_t infPath[MAX_PATH];
-                GetFullPathNameW(L"drivers\\MttVDD.inf", MAX_PATH, infPath, nullptr);
-                Logn("Thread VirtualMonitor: Instalando driver de [%ls]...", infPath);
-
-                wchar_t cmd[512];
-                swprintf_s(cmd, L"pnputil /add-driver \"%ls\" /install", infPath);
-                RunCmd(cmd);
-                
-                g_vEnabled = true;
-                Logn("Thread VirtualMonitor: Aguardando 3s...");
-                Sleep(3000); 
-            } else {
-                g_vEnabled = false;
-                Sleep(1000);
-            }
-            
-            g_vBusy = false;
-            Logn("Thread VirtualMonitor: Enviando PostMessage Refresh...");
-            PostMessageW(hNotify, WM_COMMAND, 102, 0); 
+            ToggleVirtualDisplayInternal(enable, hNotify);
         } __except(EXCEPTION_EXECUTE_HANDLER) {
             Logn("Thread VirtualMonitor: EXCECAO SEH OCORRIDA!");
             g_vBusy = false;
@@ -456,7 +502,7 @@ static bool ShowSelectionUI(HINSTANCE hInst) {
     int screenH = GetSystemMetrics(SM_CYSCREEN);
 
     HWND hw = CreateWindowExW(0, L"SMSel",
-        L"ScreenMirror v3.6 FULL \u2014 Configura\u00E7\u00E3o de Espelhamento",
+        L"ScreenMirror v3.7 FULL \u2014 Configura\u00E7\u00E3o de Espelhamento",
         WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU,
         (screenW - winW) / 2, (screenH - winH) / 2, winW, winH,
         nullptr, nullptr, hInst, nullptr);
@@ -584,7 +630,7 @@ static void CreateMirrorWindow(HINSTANCE hInst, const DisplayInfo& dst) {
     RegisterClassExW(&wc);
 
     g_mirrorHwnd = CreateWindowExW(
-        WS_EX_TOPMOST, L"SMWnd", L"ScreenMirror v3.6",
+        WS_EX_TOPMOST, L"SMWnd", L"ScreenMirror v3.7",
         WS_POPUP,
         dst.rect.left, dst.rect.top, g_dstW, g_dstH,
         nullptr, nullptr, hInst, nullptr);
