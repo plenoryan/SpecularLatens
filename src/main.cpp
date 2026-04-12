@@ -91,8 +91,26 @@ static UINT g_exitKey = VK_ESCAPE;
 static bool g_vEnabled = false;
 static int  g_vResIdx = 2; // Default 4K
 static int  g_vHzIdx = 0;  // Default 60Hz
-static const wchar_t* g_vResList[] = { L"1080p", L"1440p", L"4K", L"4K (Sony)", L"8K" };
-static const wchar_t* g_vHzList[]  = { L"60Hz", L"120Hz", L"144Hz", L"240Hz" };
+static const wchar_t* g_vResList[] = { L"1080p", L"1440p", L"4K", L"8K", L"Custom..." };
+static const wchar_t* g_vHzList[]  = { L"60Hz", L"120Hz", L"144Hz", L"240Hz", L"480Hz", L"Custom..." };
+
+static HWND g_hVResCustomW = nullptr, g_hVResCustomH = nullptr, g_hVHzCustom = nullptr;
+
+static bool IsUserAdmin() {
+    BOOL b = FALSE;
+    SID_IDENTIFIER_AUTHORITY NtAuthority = SECURITY_NT_AUTHORITY;
+    PSID AdministratorsGroup;
+    if (AllocateAndInitializeSid(&NtAuthority, 2, SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_ADMINS, 0, 0, 0, 0, 0, 0, &AdministratorsGroup)) {
+        CheckTokenMembership(nullptr, AdministratorsGroup, &b);
+        FreeSid(AdministratorsGroup);
+    }
+    return b == TRUE;
+}
+
+static bool DriverFilesExist() {
+    return (GetFileAttributesW(L"drivers\\IddSampleDriver.inf") != INVALID_FILE_ATTRIBUTES &&
+            GetFileAttributesW(L"drivers\\IddSampleDriver.dll") != INVALID_FILE_ATTRIBUTES);
+}
 
 static void RunCmd(const wchar_t* cmd) {
     STARTUPINFOW si = { sizeof(si) };
@@ -110,17 +128,32 @@ static void UpdateVirtualRegistry() {
     if (RegCreateKeyExW(HKEY_LOCAL_MACHINE, L"SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\WUDF\\Services\\IddSampleDriver\\Adapter0",
                         0, nullptr, 0, KEY_WRITE, nullptr, &hKey, nullptr) == ERROR_SUCCESS) {
         
-        wchar_t mode[128];
-        const wchar_t* res = L"3840,2160";
-        if (g_vResIdx == 0) res = L"1920,1080";
-        else if (g_vResIdx == 1) res = L"2560,1440";
-        else if (g_vResIdx == 3) res = L"3840,2160"; // Sony variant could be different but let's keep it 4K
-        else if (g_vResIdx == 4) res = L"7680,4320";
-
+        wchar_t mode[256];
+        wchar_t res[64] = L"3840,2160";
         int hz = 60;
-        if (g_vHzIdx == 1) hz = 120;
-        else if (g_vHzIdx == 2) hz = 144;
-        else if (g_vHzIdx == 3) hz = 240;
+
+        if (g_vResIdx == 4) { // Custom
+            wchar_t w[16], h[16];
+            GetWindowTextW(g_hVResCustomW, w, 16);
+            GetWindowTextW(g_hVResCustomH, h, 16);
+            swprintf_s(res, L"%s,%s", w, h);
+        } else {
+            if (g_vResIdx == 0) wcscpy_s(res, L"1920,1080");
+            else if (g_vResIdx == 1) wcscpy_s(res, L"2560,1440");
+            else if (g_vResIdx == 2) wcscpy_s(res, L"3840,2160");
+            else if (g_vResIdx == 3) wcscpy_s(res, L"7680,4320");
+        }
+
+        if (g_vHzIdx == 5) { // Custom Hz
+            wchar_t f[16];
+            GetWindowTextW(g_hVHzCustom, f, 16);
+            hz = _wtoi(f);
+        } else {
+            if (g_vHzIdx == 1) hz = 120;
+            else if (g_vHzIdx == 2) hz = 144;
+            else if (g_vHzIdx == 3) hz = 240;
+            else if (g_vHzIdx == 4) hz = 480;
+        }
 
         swprintf_s(mode, L"%s,%d", res, hz);
         RegSetValueExW(hKey, L"SupportedModes", 0, REG_SZ, (BYTE*)mode, (DWORD)(wcslen(mode) + 1) * 2);
@@ -270,6 +303,17 @@ static LRESULT CALLBACK SelProc(HWND hw, UINT msg, WPARAM wp, LPARAM lp) {
         if (id == 102) RefreshDisplayList(hw); // Atualizar
         
         if (id == 104) { // Toggle Virtual Monitor
+            if (!IsUserAdmin()) {
+                MessageBoxW(hw, L"ERRO: Voc\u00EA precisa rodar como ADMINISTRADOR para gerenciar drivers de v\u00EDdeo.", L"ScreenMirror", MB_OK | MB_ICONERROR);
+                SendMessageW((HWND)lp, BM_SETCHECK, BST_UNCHECKED, 0);
+                break;
+            }
+            if (!DriverFilesExist()) {
+                MessageBoxW(hw, L"ERRO: Arquivos do driver n\u00E3o encontrados na pasta 'drivers'.\n\nPor favor, baixe o IddSampleDriver e coloque os arquivos .inf e .dll na pasta correta.", L"ScreenMirror", MB_OK | MB_ICONERROR);
+                SendMessageW((HWND)lp, BM_SETCHECK, BST_UNCHECKED, 0);
+                break;
+            }
+
             bool check = (SendMessageW((HWND)lp, BM_GETCHECK, 0, 0) == BST_CHECKED);
             
             // Pega configs atuais
@@ -278,7 +322,6 @@ static LRESULT CALLBACK SelProc(HWND hw, UINT msg, WPARAM wp, LPARAM lp) {
 
             if (check) {
                 ToggleVirtualDisplay(true);
-                // Aguarda um pouco a tela aparecer e atualiza lista
                 Sleep(2000);
                 RefreshDisplayList(hw);
             } else {
@@ -286,6 +329,15 @@ static LRESULT CALLBACK SelProc(HWND hw, UINT msg, WPARAM wp, LPARAM lp) {
                 Sleep(1000);
                 RefreshDisplayList(hw);
             }
+        }
+        if (id == 105 || id == 106) { // ComboBox resolution or Hz changed
+            int r = (int)SendMessageW(GetDlgItem(hw, 105), CB_GETCURSEL, 0, 0);
+            int h = (int)SendMessageW(GetDlgItem(hw, 106), CB_GETCURSEL, 0, 0);
+            BOOL showR = (r == 4);
+            BOOL showH = (h == 5);
+            ShowWindow(g_hVResCustomW, showR ? SW_SHOW : SW_HIDE);
+            ShowWindow(g_hVResCustomH, showR ? SW_SHOW : SW_HIDE);
+            ShowWindow(g_hVHzCustom, showH ? SW_SHOW : SW_HIDE);
         }
         break;
     }
@@ -352,7 +404,7 @@ static bool ShowSelectionUI(HINSTANCE hInst) {
 
     // --- MONITOR VIRTUAL (FULL) ---
     HWND hGroup = CreateWindowExW(0, L"BUTTON", L" MONITOR VIRTUAL (NATIVO) ",
-        WS_CHILD | WS_VISIBLE | BS_GROUPBOX, 25, 360, 630, 90, hw, nullptr, hInst, nullptr);
+        WS_CHILD | WS_VISIBLE | BS_GROUPBOX, 25, 360, 630, 105, hw, nullptr, hInst, nullptr);
     SendMessageW(hGroup, WM_SETFONT, (WPARAM)g_hFont, TRUE);
 
     HWND hCheck = CreateWindowExW(0, L"BUTTON", L"Habilitar Monitor Virtual (Requer Admin)",
@@ -360,22 +412,30 @@ static bool ShowSelectionUI(HINSTANCE hInst) {
     SendMessageW(hCheck, WM_SETFONT, (WPARAM)g_hFont, TRUE);
 
     CreateLbl(L"Resolu\u00E7\u00E3o:", 45, 415, 80, 20);
-    HWND hComboRes = CreateWindowExW(0, L"COMBOBOX", nullptr, WS_CHILD | WS_VISIBLE | CBS_DROPDOWNLIST, 125, 412, 120, 200, hw, (HMENU)105, hInst, nullptr);
+    HWND hComboRes = CreateWindowExW(0, L"COMBOBOX", nullptr, WS_CHILD | WS_VISIBLE | CBS_DROPDOWNLIST, 125, 412, 100, 200, hw, (HMENU)105, hInst, nullptr);
     for (auto s : g_vResList) SendMessageW(hComboRes, CB_ADDSTRING, 0, (LPARAM)s);
     SendMessageW(hComboRes, CB_SETCURSEL, g_vResIdx, 0);
     SendMessageW(hComboRes, WM_SETFONT, (WPARAM)g_hFont, TRUE);
 
-    CreateLbl(L"Refresh:", 265, 415, 60, 20);
-    HWND hComboHz = CreateWindowExW(0, L"COMBOBOX", nullptr, WS_CHILD | WS_VISIBLE | CBS_DROPDOWNLIST, 325, 412, 100, 200, hw, (HMENU)106, hInst, nullptr);
+    g_hVResCustomW = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", L"1920", WS_CHILD | ES_NUMBER, 230, 412, 50, 22, hw, nullptr, hInst, nullptr);
+    g_hVResCustomH = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", L"1080", WS_CHILD | ES_NUMBER, 285, 412, 50, 22, hw, nullptr, hInst, nullptr);
+    SendMessageW(g_hVResCustomW, WM_SETFONT, (WPARAM)g_hFont, TRUE);
+    SendMessageW(g_hVResCustomH, WM_SETFONT, (WPARAM)g_hFont, TRUE);
+
+    CreateLbl(L"Refresh:", 355, 415, 60, 20);
+    HWND hComboHz = CreateWindowExW(0, L"COMBOBOX", nullptr, WS_CHILD | WS_VISIBLE | CBS_DROPDOWNLIST, 415, 412, 100, 200, hw, (HMENU)106, hInst, nullptr);
     for (auto s : g_vHzList) SendMessageW(hComboHz, CB_ADDSTRING, 0, (LPARAM)s);
     SendMessageW(hComboHz, CB_SETCURSEL, g_vHzIdx, 0);
     SendMessageW(hComboHz, WM_SETFONT, (WPARAM)g_hFont, TRUE);
 
+    g_hVHzCustom = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", L"60", WS_CHILD | ES_NUMBER, 520, 412, 40, 22, hw, nullptr, hInst, nullptr);
+    SendMessageW(g_hVHzCustom, WM_SETFONT, (WPARAM)g_hFont, TRUE);
+
     // --- CONFIGS GERAIS ---
-    CreateLbl(L"Atalho de Sa\u00EDda:", 25, 475, 120, 20);
+    CreateLbl(L"Atalho de Sa\u00EDda:", 25, 495, 120, 20);
     HWND hComboKey = CreateWindowExW(0, L"COMBOBOX", nullptr,
         WS_CHILD | WS_VISIBLE | CBS_DROPDOWNLIST | WS_VSCROLL,
-        150, 472, 100, 200, hw, (HMENU)103, hInst, nullptr);
+        150, 492, 100, 200, hw, (HMENU)103, hInst, nullptr);
     SendMessageW(hComboKey, WM_SETFONT, (WPARAM)g_hFont, TRUE);
     SendMessageW(hComboKey, CB_ADDSTRING, 0, (LPARAM)L"ESC");
     SendMessageW(hComboKey, CB_ADDSTRING, 0, (LPARAM)L"F4");
@@ -384,7 +444,7 @@ static bool ShowSelectionUI(HINSTANCE hInst) {
     SendMessageW(hComboKey, CB_ADDSTRING, 0, (LPARAM)L"HOME");
     SendMessageW(hComboKey, CB_SETCURSEL, 0, 0);
 
-    CreateLbl(L"Dica: Durante o espelhamento, o atalho escolhido fecha o programa.", 25, 505, 500, 20);
+    CreateLbl(L"Dica: Durante o espelhamento, o atalho escolhido fecha o programa.", 25, 525, 500, 20);
 
     // Popular listas
     RefreshDisplayList(hw);
@@ -397,9 +457,9 @@ static bool ShowSelectionUI(HINSTANCE hInst) {
         return hB;
     };
 
-    CreateBtn(L"\u25B6 Iniciar Espelhamento", 25, 535, 200, 45, 100, true);
-    CreateBtn(L"Atualizar Lista", 235, 535, 120, 45, 102);
-    CreateBtn(L"Sair", 535, 535, 120, 45, 101);
+    CreateBtn(L"\u25B6 Iniciar Espelhamento", 25, 555, 200, 45, 100, true);
+    CreateBtn(L"Atualizar Lista", 235, 555, 120, 45, 102);
+    CreateBtn(L"Sair", 535, 555, 120, 45, 101);
 
     ShowWindow(hw, SW_SHOW);
     UpdateWindow(hw);
