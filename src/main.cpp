@@ -264,12 +264,20 @@ struct DisplayInfo {
 };
 static std::vector<DisplayInfo> g_displays;
 
+static void ResetGraphicsStack() {
+    Logn("ResetGraphicsStack: Purificando recursos DXGI/D3D...");
+    g_factory.Reset();
+    g_device.Reset();
+    g_ctx.Reset();
+    g_swapChain.Reset();
+    g_rtv.Reset();
+    g_displays.clear();
+}
+
 static void EnumerateDisplays() {
     Logn("Iniciando EnumerateDisplays...");
-    g_displays.clear();
+    ResetGraphicsStack();
     
-    // Recria o factory para garantir estado atualizado do hardware
-    g_factory.Reset();
     HRESULT hr = CreateDXGIFactory1(IID_PPV_ARGS(&g_factory));
     if (FAILED(hr)) {
         Logn("FALHA ao criar DXGI Factory: 0x%08X", hr);
@@ -335,23 +343,24 @@ static void RefreshDisplayList(HWND hw) {
     SendMessageW(g_hDstList, LB_SETCURSEL, g_displays.size() > 1 ? 1 : 0, 0);
 }
 
-static LRESULT CALLBACK SelProc(HWND hw, UINT msg, WPARAM wp, LPARAM lp) {
-    switch (msg) {
-    case WM_COMMAND: {
+static LRESULT CALLBACK SelProcInternal(HWND hw, UINT msg, WPARAM wp, LPARAM lp) {
+    if (msg == WM_COMMAND) {
         int id = LOWORD(wp);
-        if (id == 100) {  // Iniciar
+        HWND hCtrl = (HWND)lp;
+        
+        if (id == 100) { // Iniciar
             int s = (int)SendMessageW(g_hSrcList, LB_GETCURSEL, 0, 0);
             int d = (int)SendMessageW(g_hDstList, LB_GETCURSEL, 0, 0);
+            
             if (s == LB_ERR || d == LB_ERR) {
-                MessageBoxW(hw, L"Selecione a origem e o destino.", L"ScreenMirror", MB_OK | MB_ICONWARNING);
-                break;
+                MessageBoxW(hw, L"Selecione a ORIGEM e o DESTINO.", L"ScreenMirror", MB_OK | MB_ICONWARNING);
+                return 0;
             }
             if (s == d) {
-                MessageBoxW(hw, L"Origem e destino devem ser telas diferentes.", L"ScreenMirror", MB_OK | MB_ICONEXCLAMATION);
-                break;
+                MessageBoxW(hw, L"A origem e o destino devem ser telas diferentes.", L"ScreenMirror", MB_OK | MB_ICONEXCLAMATION);
+                return 0;
             }
 
-            // Pega o atalho selecionado
             HWND hCombo = GetDlgItem(hw, 103);
             int curKey = (int)SendMessageW(hCombo, CB_GETCURSEL, 0, 0);
             if (curKey == 0) g_exitKey = VK_ESCAPE;
@@ -363,55 +372,48 @@ static LRESULT CALLBACK SelProc(HWND hw, UINT msg, WPARAM wp, LPARAM lp) {
             g_srcIdx = s; g_dstIdx = d; g_selOk = true;
             DestroyWindow(hw);
         }
-        if (id == 101) DestroyWindow(hw);  // Cancelar
-        if (id == 102) RefreshDisplayList(hw); // Atualizar
+        if (id == 101) DestroyWindow(hw);
+        if (id == 102) RefreshDisplayList(hw);
         
-        if (id == 104) { // Toggle Virtual Monitor
+        if (id == 104) {
             if (g_vBusy) {
-                SendMessageW((HWND)lp, BM_SETCHECK, g_vEnabled ? BST_CHECKED : BST_UNCHECKED, 0);
-                break;
+                SendMessageW(hCtrl, BM_SETCHECK, g_vEnabled ? BST_CHECKED : BST_UNCHECKED, 0);
+                return 0;
             }
-
             if (!IsUserAdmin()) {
-                MessageBoxW(hw, L"ERRO: Voc\u00EA precisa rodar como ADMINISTRADOR para gerenciar drivers de v\u00EDdeo.", L"ScreenMirror", MB_OK | MB_ICONERROR);
-                SendMessageW((HWND)lp, BM_SETCHECK, BST_UNCHECKED, 0);
-                break;
+                MessageBoxW(hw, L"ERRO: Voc\u00EA precisa rodar como ADMINISTRADOR.", L"ScreenMirror", MB_OK | MB_ICONERROR);
+                SendMessageW(hCtrl, BM_SETCHECK, g_vEnabled ? BST_CHECKED : BST_UNCHECKED, 0);
+                return 0;
             }
-            if (!DriverFilesExist()) {
-                MessageBoxW(hw, L"ERRO: Arquivos do driver MttVDD n\u00E3o encontrados na pasta 'drivers'.", L"ScreenMirror", MB_OK | MB_ICONERROR);
-                SendMessageW((HWND)lp, BM_SETCHECK, BST_UNCHECKED, 0);
-                break;
-            }
-
-            bool check = (SendMessageW((HWND)lp, BM_GETCHECK, 0, 0) == BST_CHECKED);
-            
-            // Pega configs atuais
+            bool check = (SendMessageW(hCtrl, BM_GETCHECK, 0, 0) == BST_CHECKED);
             g_vResIdx = (int)SendMessageW(GetDlgItem(hw, 105), CB_GETCURSEL, 0, 0);
             g_vHzIdx = (int)SendMessageW(GetDlgItem(hw, 106), CB_GETCURSEL, 0, 0);
-
             ToggleVirtualDisplay(check, hw);
         }
-        if (id == 105 || id == 106) { // ComboBox resolution or Hz changed
+        if (id == 105 || id == 106) {
             int r = (int)SendMessageW(GetDlgItem(hw, 105), CB_GETCURSEL, 0, 0);
             int h = (int)SendMessageW(GetDlgItem(hw, 106), CB_GETCURSEL, 0, 0);
-            BOOL showR = (r == 4);
-            BOOL showH = (h == 5);
-            ShowWindow(g_hVResCustomW, showR ? SW_SHOW : SW_HIDE);
-            ShowWindow(g_hVResCustomH, showR ? SW_SHOW : SW_HIDE);
-            ShowWindow(g_hVHzCustom, showH ? SW_SHOW : SW_HIDE);
+            ShowWindow(g_hVResCustomW, r == 4 ? SW_SHOW : SW_HIDE);
+            ShowWindow(g_hVResCustomH, r == 4 ? SW_SHOW : SW_HIDE);
+            ShowWindow(g_hVHzCustom, h == 5 ? SW_SHOW : SW_HIDE);
         }
-        break;
     }
-    case WM_CTLCOLORSTATIC: {
-        HDC hdc = (HDC)wp;
-        SetBkMode(hdc, TRANSPARENT);
+    
+    if (msg == WM_CTLCOLORSTATIC) {
+        SetBkMode((HDC)wp, TRANSPARENT);
         return (LRESULT)GetStockObject(WHITE_BRUSH);
     }
-    case WM_DESTROY:
-        PostQuitMessage(0);
-        break;
-    }
     return DefWindowProcW(hw, msg, wp, lp);
+}
+
+static LRESULT CALLBACK SelProc(HWND hw, UINT msg, WPARAM wp, LPARAM lp) {
+    if (msg == WM_DESTROY) { PostQuitMessage(0); return 0; }
+    __try {
+        return SelProcInternal(hw, msg, wp, lp);
+    } __except(EXCEPTION_EXECUTE_HANDLER) {
+        Logn("CRITICAL: SEH in SelProc! 0x%08X", GetExceptionCode());
+        return 0;
+    }
 }
 
 static bool ShowSelectionUI(HINSTANCE hInst) {
@@ -854,21 +856,28 @@ static void RunMirrorLoop(UINT srcAdapter, UINT srcOutput, RECT srcRect) {
 // =============================================================================
 // WinMain
 // =============================================================================
-int WINAPI WinMain(HINSTANCE hInst, HINSTANCE, LPSTR, int) {
-    // A conscientiza\u00E7\u00E3o de DPI agora est\u00E1 no Manifest para ser carregada antes do DXGI.
-    
+static int WinMainInternal(HINSTANCE hInst) {
     HRESULT hr = CreateDXGIFactory1(IID_PPV_ARGS(&g_factory));
-    if (FAILED(hr)) Fatal("CreateDXGIFactory1 failed", hr);
+    if (FAILED(hr)) {
+        Logn("FALHA na inicializacao DXGI inicial: 0x%08X", hr);
+        Fatal("Erro ao inicializar DXGI.");
+        return 0;
+    }
 
     EnumerateDisplays();
-    if (g_displays.empty()) Fatal("Nenhum monitor detectado.");
+    if (g_displays.empty()) {
+        Logn("ERRO: Nenhum monitor detectado no arranque.");
+    }
 
-    if (!ShowSelectionUI(hInst)) return 0;
+    if (!ShowSelectionUI(hInst)) {
+        Logn("Saindo: Selecao cancelada.");
+        return 0;
+    }
 
     const DisplayInfo& src = g_displays[g_srcIdx];
     const DisplayInfo& dst = g_displays[g_dstIdx];
+    Logn("Iniciando capturador: Origem=%ls, Destino=%ls", src.name.c_str(), dst.name.c_str());
 
-    // Cria device D3D11 no adapter da tela de origem
     ComPtr<IDXGIAdapter1> adapter;
     g_factory->EnumAdapters1(src.adapterIdx, &adapter);
 
@@ -876,7 +885,10 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE, LPSTR, int) {
     hr = D3D11CreateDevice(adapter.Get(), D3D_DRIVER_TYPE_UNKNOWN, nullptr,
                            0, &fl, 1, D3D11_SDK_VERSION,
                            &g_device, &flOut, &g_ctx);
-    if (FAILED(hr)) Fatal("D3D11CreateDevice failed", hr);
+    if (FAILED(hr)) {
+        Logn("FALHA no D3D11CreateDevice: 0x%08X", hr);
+        Fatal("Erro ao criar dispositivo D3D11.", hr);
+    }
 
     CreateMirrorWindow(hInst, dst);
     CreateSwapChain();
@@ -884,4 +896,17 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE, LPSTR, int) {
 
     RunMirrorLoop(src.adapterIdx, src.outputIdx, src.rect);
     return 0;
+}
+
+int WINAPI WinMain(HINSTANCE hInst, HINSTANCE, LPSTR, int) {
+    Logn("--- ScreenMirror v3.5 Iniciado ---");
+    int ret = 0;
+    __try {
+        ret = WinMainInternal(hInst);
+    } __except(EXCEPTION_EXECUTE_HANDLER) {
+        Logn("FATAL: SEH in WinMain! 0x%08X", GetExceptionCode());
+        MessageBoxW(nullptr, L"Erro fatal capturado. Veja o log para detalhes.", L"ScreenMirror CRASH", MB_OK | MB_ICONERROR);
+    }
+    Logn("--- ScreenMirror Encerrado ---");
+    return ret;
 }
