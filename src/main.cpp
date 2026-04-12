@@ -23,6 +23,30 @@
 #include <wrl/client.h>
 #include <cstring>
 #include <cstdio>
+#include <cstdarg>
+#include <fstream>
+#include <chrono>
+
+using Microsoft::WRL::ComPtr;
+
+// --- Debug Logging ---
+static void Logn(const char* fmt, ...) {
+    FILE* f = nullptr;
+    if (fopen_s(&f, "ScreenMirror_Debug.log", "a") == 0) {
+        auto now = std::chrono::system_clock::now();
+        time_t t = std::chrono::system_clock::to_time_t(now);
+        struct tm tm_info;
+        localtime_s(&tm_info, &t);
+        fprintf(f, "[%02d:%02d:%02d] ", tm_info.tm_hour, tm_info.tm_min, tm_info.tm_sec);
+
+        va_list args;
+        va_start(args, fmt);
+        vfprintf(f, fmt, args);
+        va_end(args);
+        fprintf(f, "\n");
+        fclose(f);
+    }
+}
 
 #pragma comment(lib, "d3d11.lib")
 #pragma comment(lib, "dxgi.lib")
@@ -30,8 +54,6 @@
 #pragma comment(lib, "user32.lib")
 #pragma comment(lib, "gdi32.lib")
 #pragma comment(lib, "comctl32.lib")
-
-using Microsoft::WRL::ComPtr;
 
 // =============================================================================
 // Shaders HLSL embutidos
@@ -118,17 +140,25 @@ static bool DriverFilesExist() {
 }
 
 static void RunCmd(const wchar_t* cmd) {
+    Logn("RunCmd: Executando [%ls]", cmd);
     STARTUPINFOW si = { sizeof(si) };
     PROCESS_INFORMATION pi = {};
-    if (CreateProcessW(nullptr, (LPWSTR)cmd, nullptr, nullptr, FALSE, CREATE_NO_WINDOW, nullptr, nullptr, &si, &pi)) {
-        WaitForSingleObject(pi.hProcess, 10000);
+    wchar_t c[512];
+    wcscpy_s(c, cmd);
+    if (CreateProcessW(nullptr, c, nullptr, nullptr, FALSE, CREATE_NO_WINDOW, nullptr, nullptr, &si, &pi)) {
+        WaitForSingleObject(pi.hProcess, INFINITE);
+        DWORD exitCode = 0;
+        GetExitCodeProcess(pi.hProcess, &exitCode);
+        Logn("RunCmd: Concluido. ExitCode: %d", exitCode);
         CloseHandle(pi.hProcess);
         CloseHandle(pi.hThread);
+    } else {
+        Logn("RunCmd: FALHA ao criar processo. Error: %d", GetLastError());
     }
 }
 
 static void UpdateVirtualRegistry() {
-    // Configura a resolu\u00E7\u00E3o no driver MttVDD
+    Logn("UpdateVirtualRegistry: Perfilando registro...");
     HKEY hKey;
     if (RegCreateKeyExW(HKEY_LOCAL_MACHINE, L"SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\WUDF\\Services\\MttVDD\\Adapter0",
                         0, nullptr, 0, KEY_WRITE, nullptr, &hKey, nullptr) == ERROR_SUCCESS) {
@@ -138,10 +168,11 @@ static void UpdateVirtualRegistry() {
         int hz = 60;
 
         if (g_vResIdx == 4) { // Custom
-            wchar_t w[16], h[16];
-            GetWindowTextW(g_hVResCustomW, w, 16);
-            GetWindowTextW(g_hVResCustomH, h, 16);
+            wchar_t w[16] = {0}, h[16] = {0};
+            if (g_hVResCustomW) GetWindowTextW(g_hVResCustomW, w, 16);
+            if (g_hVResCustomH) GetWindowTextW(g_hVResCustomH, h, 16);
             swprintf_s(res, L"%s,%s", w, h);
+            Logn("  Modo Custom: %ls", res);
         } else {
             if (g_vResIdx == 0) wcscpy_s(res, L"1920,1080");
             else if (g_vResIdx == 1) wcscpy_s(res, L"2560,1440");
@@ -150,9 +181,10 @@ static void UpdateVirtualRegistry() {
         }
 
         if (g_vHzIdx == 5) { // Custom Hz
-            wchar_t f[16];
-            GetWindowTextW(g_hVHzCustom, f, 16);
+            wchar_t f[16] = {0};
+            if (g_hVHzCustom) GetWindowTextW(g_hVHzCustom, f, 16);
             hz = _wtoi(f);
+            Logn("  Hz Custom: %d", hz);
         } else {
             if (g_vHzIdx == 1) hz = 120;
             else if (g_vHzIdx == 2) hz = 144;
@@ -161,8 +193,11 @@ static void UpdateVirtualRegistry() {
         }
 
         swprintf_s(mode, L"%s,%d", res, hz);
+        Logn("  Salvando SupportedModes: %ls", mode);
         RegSetValueExW(hKey, L"SupportedModes", 0, REG_SZ, (BYTE*)mode, (DWORD)(wcslen(mode) + 1) * 2);
         RegCloseKey(hKey);
+    } else {
+        Logn("  ERRO: Nao foi possivel criar/abrir chave de registro.");
     }
 }
 
@@ -171,22 +206,25 @@ static void ToggleVirtualDisplay(bool enable, HWND hNotify) {
     g_vBusy = true;
 
     std::thread([enable, hNotify]() {
-        if (enable) {
-            UpdateVirtualRegistry();
-            // Tenta adicionar o driver MttVDD
-            RunCmd(L"pnputil /add-driver drivers\\MttVDD.inf /install");
-            g_vEnabled = true;
-            Sleep(2500); // Aguarda o Windows processar o hardware
-        } else {
-            // Por simplicidade marcamos desativado. 
-            // Para remoção real, pnputil exigiria o OEM#.inf específico.
-            g_vEnabled = false;
-            Sleep(1000);
+        __try {
+            Logn("Thread VirtualMonitor: Inicido (enable=%d)", enable);
+            if (enable) {
+                UpdateVirtualRegistry();
+                RunCmd(L"pnputil /add-driver drivers\\MttVDD.inf /install");
+                g_vEnabled = true;
+                Logn("Thread VirtualMonitor: Aguardando 3s...");
+                Sleep(3000); 
+            } else {
+                g_vEnabled = false;
+                Sleep(1000);
+            }
+            
+            g_vBusy = false;
+            Logn("Thread VirtualMonitor: Enviando PostMessage Refresh...");
+            PostMessageW(hNotify, WM_COMMAND, 102, 0); 
+        } __except(EXCEPTION_EXECUTE_HANDLER) {
+            Logn("Thread VirtualMonitor: EXCECAO SEH OCORRIDA!");
         }
-        
-        g_vBusy = false;
-        // Notifica a janela principal para atualizar a lista
-        PostMessageW(hNotify, WM_COMMAND, 102, 0); // 102 = Refresh
     }).detach();
 }
 
@@ -226,36 +264,48 @@ struct DisplayInfo {
 };
 static std::vector<DisplayInfo> g_displays;
 
-static BOOL CALLBACK MonitorCb(HMONITOR hm, HDC, LPRECT, LPARAM) {
-    MONITORINFOEXW mi = {}; mi.cbSize = sizeof(mi);
-    GetMonitorInfoW(hm, &mi);
-    DisplayInfo d;
-    d.hMon       = hm;
-    d.rect       = mi.rcMonitor;
-    d.isPrimary  = (mi.dwFlags & MONITORINFOF_PRIMARY) != 0;
-    d.name       = mi.szDevice;
-    d.adapterIdx = 0; d.outputIdx = 0;
-    g_displays.push_back(d);
-    return TRUE;
-}
-
 static void EnumerateDisplays() {
+    Logn("Iniciando EnumerateDisplays...");
     g_displays.clear();
-    EnumDisplayMonitors(nullptr, nullptr, MonitorCb, 0);
-
-    UINT ai = 0;
-    ComPtr<IDXGIAdapter1> adapter;
-    while (g_factory->EnumAdapters1(ai, &adapter) != DXGI_ERROR_NOT_FOUND) {
-        UINT oi = 0;
-        ComPtr<IDXGIOutput> out;
-        while (adapter->EnumOutputs(oi, &out) != DXGI_ERROR_NOT_FOUND) {
-            DXGI_OUTPUT_DESC od; out->GetDesc(&od);
-            for (auto& d : g_displays)
-                if (d.hMon == od.Monitor) { d.adapterIdx = ai; d.outputIdx = oi; }
-            ++oi;
-        }
-        ++ai;
+    
+    // Recria o factory para garantir estado atualizado do hardware
+    g_factory.Reset();
+    HRESULT hr = CreateDXGIFactory1(IID_PPV_ARGS(&g_factory));
+    if (FAILED(hr)) {
+        Logn("FALHA ao criar DXGI Factory: 0x%08X", hr);
+        return;
     }
+
+    UINT aIdx = 0;
+    ComPtr<IDXGIAdapter1> adapter;
+    while (g_factory->EnumAdapters1(aIdx, &adapter) != DXGI_ERROR_NOT_FOUND) {
+        DXGI_ADAPTER_DESC1 ad;
+        adapter->GetDesc1(&ad);
+        Logn("Adaptador [%d]: %ls", aIdx, ad.Description);
+
+        UINT oIdx = 0;
+        ComPtr<IDXGIOutput> out;
+        while (adapter->EnumOutputs(oIdx, &out) != DXGI_ERROR_NOT_FOUND) {
+            DXGI_OUTPUT_DESC od;
+            out->GetDesc(&od);
+            
+            DisplayInfo info;
+            info.name = od.DeviceName;
+            info.rect = od.DesktopCoordinates;
+            info.adapterIdx = aIdx;
+            info.outputIdx = oIdx;
+            g_displays.push_back(info);
+            
+            Logn("  Saida [%d]: %ls (%dx%d)", oIdx, od.DeviceName, 
+                 od.DesktopCoordinates.right - od.DesktopCoordinates.left,
+                 od.DesktopCoordinates.bottom - od.DesktopCoordinates.top);
+            oIdx++;
+            out.Reset();
+        }
+        aIdx++;
+        adapter.Reset();
+    }
+    Logn("EnumerateDisplays concluido. %zu monitores encontrados.", g_displays.size());
 }
 
 // =============================================================================
