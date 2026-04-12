@@ -349,6 +349,10 @@ static LRESULT CALLBACK SelProcInternal(HWND hw, UINT msg, WPARAM wp, LPARAM lp)
         HWND hCtrl = (HWND)lp;
         
         if (id == 100) { // Iniciar
+            if (g_vBusy) {
+                MessageBoxW(hw, L"Aguarde a configura\u00E7\u00E3o do monitor virtual concluir.", L"ScreenMirror", MB_OK | MB_ICONINFORMATION);
+                return 0;
+            }
             int s = (int)SendMessageW(g_hSrcList, LB_GETCURSEL, 0, 0);
             int d = (int)SendMessageW(g_hDstList, LB_GETCURSEL, 0, 0);
             
@@ -435,7 +439,7 @@ static bool ShowSelectionUI(HINSTANCE hInst) {
     int screenH = GetSystemMetrics(SM_CYSCREEN);
 
     HWND hw = CreateWindowExW(0, L"SMSel",
-        L"ScreenMirror v3.2 FULL \u2014 Configura\u00E7\u00E3o de Espelhamento",
+        L"ScreenMirror v3.5 FULL \u2014 Configura\u00E7\u00E3o de Espelhamento",
         WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU,
         (screenW - winW) / 2, (screenH - winH) / 2, winW, winH,
         nullptr, nullptr, hInst, nullptr);
@@ -563,7 +567,7 @@ static void CreateMirrorWindow(HINSTANCE hInst, const DisplayInfo& dst) {
     RegisterClassExW(&wc);
 
     g_mirrorHwnd = CreateWindowExW(
-        WS_EX_TOPMOST, L"SMWnd", L"ScreenMirror v2.2",
+        WS_EX_TOPMOST, L"SMWnd", L"ScreenMirror v3.5",
         WS_POPUP,
         dst.rect.left, dst.rect.top, g_dstW, g_dstH,
         nullptr, nullptr, hInst, nullptr);
