@@ -1,5 +1,0 @@
-﻿ScreenMirror v3.6 FULL - NAVEGAÇÃO ESC & LOGS FIX
--------------------------------------------------
-1. ESC VOLTA AO MENU: Ao pressionar ESC durante o espelhamento, você volta para a tela de seleção, em vez de fechar o programa.
-2. LOGS SEGUROS: Sistema de logs corrigido para evitar falhas silenciosas ao ativar o monitor.
-3. ESTABILIDADE: Atuação da thread de driver com verificação de caminho absoluto.

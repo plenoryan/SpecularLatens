@@ -1,9 +1,0 @@
-﻿ScreenMirror v3.7 FULL - INVESTIGATOR EDITION
----------------------------------------------
-ESTA VERSÃO CAPTURA O ERRO REAL DO WINDOWS.
-
-O QUE MUDOU?
-------------
-1. CAPTURA DE SAIDA: Agora o log registra a mensagem exata que o Windows devolveu ao tentar instalar o monitor.
-2. SYSNATIVE FIX: Corrigido bug onde o Windows redirecionava o instalador de driver para a pasta errada (259 STILL_ACTIVE).
-3. VERIFICAÇAO DE REGISTRO: O app confirma se o driver realmente foi aceito pelo sistema.

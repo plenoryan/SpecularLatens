@@ -2,7 +2,7 @@
 setlocal
 
 echo ============================================================
-echo  ScreenMirror - Build Script (MSVC)
+echo  SpecularLatens - Build Script (MSVC)
 echo ============================================================
 
 REM ---- Locate vswhere to find Visual Studio ----
@@ -46,7 +46,7 @@ REM ---- Compile Code ----
 echo [Compilando codigo ...]
 cl.exe /nologo /std:c++17 /O2 /W3 /EHsc ^
     /D"WIN32" /D"UNICODE" /D"_UNICODE" /D"NDEBUG" ^
-    /Fe"bin\ScreenMirror.exe" ^
+    /Fe"bin\SpecularLatens.exe" ^
     /Fo"bin\\" ^
     src\main.cpp bin\resource.res ^
     /link ^
@@ -61,13 +61,13 @@ if errorlevel 1 (
 )
 
 echo.
-echo [OK] Build concluido: bin\ScreenMirror.exe
+echo [OK] Build concluido: bin\SpecularLatens.exe
 echo.
 
 REM ---- Ask to run ----
 set /p RUN="Deseja executar agora? (s/n): "
 if /i "%RUN%"=="s" (
-    start "" "bin\ScreenMirror.exe"
+    start "" "bin\SpecularLatens.exe"
 )
 
 endlocal

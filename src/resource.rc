@@ -1,13 +1,13 @@
 #include <windows.h>
+#include "resource.h"
 
-// For\u00E7ar o compilador RC a tratar o arquivo como UTF-8
-#pragma code_page(65001)
+IDI_APP_ICON ICON "SpecularLatens.ico"
 
 1 24 "manifest.xml"
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 3,7,0,0
- PRODUCTVERSION 3,7,0,0
+ FILEVERSION 1,0,0,0
+ PRODUCTVERSION 1,0,0,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -23,13 +23,13 @@ BEGIN
         BLOCK "041604B0"
         BEGIN
             VALUE "CompanyName", "PlenoRyan Open Source"
-            VALUE "FileDescription", "ScreenMirror - Espelhamento de Baixa Latência"
-            VALUE "FileVersion", "3.7.0.0"
-            VALUE "InternalName", "ScreenMirror"
+            VALUE "FileDescription", "Specular Latens - Espelhamento de Baixa Latencia"
+            VALUE "FileVersion", "1.0.0.0"
+            VALUE "InternalName", "SpecularLatens"
             VALUE "LegalCopyright", "Copyright (C) 2026 PlenoRyan"
-            VALUE "OriginalFilename", "ScreenMirror.exe"
-            VALUE "ProductName", "ScreenMirror"
-            VALUE "ProductVersion", "3.7.0.0"
+            VALUE "OriginalFilename", "SpecularLatens.exe"
+            VALUE "ProductName", "Specular Latens"
+            VALUE "ProductVersion", "1.0.0.0"
         END
     END
     BLOCK "VarFileInfo"
