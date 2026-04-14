@@ -22,7 +22,7 @@ Este programa foi criado especificamente para facilitar a simulação de altas r
 
 Para usuários que não são desenvolvedores, baixe a versão pronta para uso abaixo:
 
-**[➔ Baixar SpecularLatens v1.00)](https://github.com/plenoryan/SpecularLatens/releases/download/v1.00/SpecularLatens.exe)**
+**[➔ Baixar SpecularLatens v1.00](https://github.com/plenoryan/SpecularLatens/releases/download/v1.00/SpecularLatens.exe)**
 
 *(Basta baixar, extrair e rodar o SpecularLatens.exe)*
 
