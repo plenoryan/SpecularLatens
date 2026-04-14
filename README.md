@@ -1,4 +1,4 @@
-# ScreenMirror
+# SpecularLatens
 
 Espelhamento de tela com **baixíssima latência** via **DXGI Desktop Duplication API + Direct3D 11**.
 
@@ -13,7 +13,7 @@ Este programa foi criado especificamente para facilitar a simulação de altas r
 ### O Fluxo:
 1.  **Tela Virtual:** Utilize um driver como o **VDD (Virtual Display Driver)** para criar uma tela virtual de alta resolução (ex: 4K) no seu sistema.
 2.  **Execução do Jogo:** Configure o seu jogo para rodar nesta tela virtual em 4K.
-3.  **Visualização:** Utilize o **ScreenMirror** para capturar essa tela virtual 4K e exibi-la em tempo real no seu monitor físico de menor resolução (ex: 1080p).
+3.  **Visualização:** Utilize o **SpecularLatens** para capturar essa tela virtual 4K e exibi-la em tempo real no seu monitor físico de menor resolução (ex: 1080p).
 4.  **Resultado:** Você consegue rodar o jogo em uma resolução muito maior, aproveitando o sampling e a fidelidade visual da Super Resolução, visualizando tudo no seu monitor principal com baixíssima latência.
 
 ---
@@ -22,9 +22,9 @@ Este programa foi criado especificamente para facilitar a simulação de altas r
 
 Para usuários que não são desenvolvedores, baixe a versão pronta para uso abaixo:
 
-**[➔ Baixar ScreenMirror v2.0 (ZIP)](https://github.com/plenoryan/ScreenMirror/releases)**
+**[➔ Baixar SpecularLatens v1.00)](https://github.com/plenoryan/SpecularLatens/releases/download/v1.00/SpecularLatens.exe)**
 
-*(Basta baixar, extrair e rodar o ScreenMirror.exe)*
+*(Basta baixar, extrair e rodar o SpecularLatens.exe)*
 
 ---
 
@@ -46,11 +46,11 @@ Para usuários que não são desenvolvedores, baixe a versão pronta para uso ab
 Clique duas vezes em **`build.bat`** ou execute no terminal:
 
 ```bat
-cd C:\Developer\ScreenMirror
+cd C:\Developer\SpecularLatens
 build.bat
 ```
 
-O executável será gerado em `bin\ScreenMirror.exe`.
+O executável será gerado em `bin\SpecularLatens.exe`.
 
 ---
 
@@ -70,9 +70,9 @@ cmake --build . --config Release
 Abra o **"x64 Native Tools Command Prompt for VS 2022"** e:
 
 ```bat
-cd C:\Developer\ScreenMirror
+cd C:\Developer\SpecularLatens
 cl /nologo /std:c++17 /O2 /EHsc /D UNICODE /D _UNICODE ^
-   /Fe bin\ScreenMirror.exe src\main.cpp ^
+   /Fe bin\SpecularLatens.exe src\main.cpp ^
    /link /SUBSYSTEM:WINDOWS ^
    d3d11.lib dxgi.lib d3dcompiler.lib user32.lib gdi32.lib
 ```
@@ -81,7 +81,7 @@ cl /nologo /std:c++17 /O2 /EHsc /D UNICODE /D _UNICODE ^
 
 ## ▶️ Como usar
 
-1. Execute `bin\ScreenMirror.exe`
+1. Execute `bin\SpecularLatens.exe`
 2. Selecione a **ORIGEM** (tela a capturar — ex.: seu VDD 4K)
 3. Selecione o **DESTINO** (tela onde exibir — ex.: seu monitor 1080p 144 Hz)
 4. Clique em **"Iniciar Espelhamento"**
@@ -93,7 +93,7 @@ cl /nologo /std:c++17 /O2 /EHsc /D UNICODE /D _UNICODE ^
 ... (omitted content for clarity, I'll provide full replacement) ...
 ### 📦 Portabilidade
 
-O **ScreenMirror** é totalmente portátil. O executável gerado em `bin/ScreenMirror.exe` é um arquivo único e autossuficiente:
+O **SpecularLatens** é totalmente portátil. O executável gerado em `bin/SpecularLatens.exe` é um arquivo único e autossuficiente:
 - **Sem Instalador:** Basta copiar e rodar.
 - **Dependências Zero:** Utiliza apenas as DLLs nativas do Windows (`d3d11.dll`, `dxgi.dll`, etc.).
 - **Ideal para pendrives:** Pode ser levado para qualquer máquina Windows 8+ e funcionará instantaneamente.
@@ -125,7 +125,7 @@ O **ScreenMirror** é totalmente portátil. O executável gerado em `bin/ScreenM
 ## 🎮 Caso de uso: VDD 4K → Monitor 1080p 144 Hz
 
 1. Configure o jogo para renderizar na tela VDD (4K)
-2. Abra o ScreenMirror
+2. Abra o SpecularLatens
 3. **ORIGEM** = VDD 4K  /  **DESTINO** = Monitor 1080p 144 Hz
 4. O jogo aparece no seu monitor físico em tempo real, com escala GPU e cursor visível
 
@@ -153,7 +153,7 @@ O **ScreenMirror** é totalmente portátil. O executável gerado em `bin/ScreenM
 ## 📁 Estrutura
 
 ```
-ScreenMirror/
+SpecularLatens/
 ├── src/
 │   └── main.cpp        # Código-fonte completo (~500 linhas)
 ├── bin/                # Executável gerado pelo build
