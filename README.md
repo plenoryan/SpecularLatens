@@ -148,6 +148,17 @@ O **SpecularLatens** é totalmente portátil. O executável gerado em `bin/Specu
 
 ---
 
+## ⚙️ Especificações de Performance e Limitações Técnicas
+
+Para alcançar nossa cobiçada latência "zero", o **ScreenMirror** entrega um funcionamento direto e cru, com as seguintes características em setups avançados de alta resolução:
+
+*   **Gerenciamento de Cor (HDR/10-bit):** Focado na compatibilidade primária e estabilidade, o processo via *DXGI Desktop Duplication* captura texturas de formato padrão de 8-bits SDR (`B8G8R8A8_UNORM`). Jogar com fontes nativas 4K HDR resultará na degradação das cores intensas (podendo aparentar estar "lavadas" no destino SDR).
+*   **Encaminhamento de Áudio:** O App trabalha 100% no circuito de processamento visual (GPU). No entanto, **utilizando o Virtual Display Driver (VDD)** recomendado no processo, **não há problemas de áudio ou dessincronização**, uma vez que a instalação do VDD acompanha seu próprio canal de áudio que fará a ponte sonora fluir corretamente em seu sistema, sem exigir aplicativos extras.
+*   **Controle de Input:** É projetado como um "espelho estrito". Não tem a função de resgatar seus cliques, redimensionamento ou digitação para uma injeção de evento no monitor origem remotamente. Toda interação continua baseada na operação nativa dentro do seu Windows local.
+*   **Eficiência de CPU e Hardware:** Não possui peso perceptível de CPU em escalas 4K e não gasta o hardware com codificação convencional comutável (como NVIDIA NVENC ou AMD AMF). Aproveitando métodos transparentes nativos, o Direct3D 11 realiza uma técnica `Zero-Copy` sem mover dados para re-codificar em vídeo mp4/stream, tirando completamente o fardo do processador durante os jogos.
+*   **Frame Generation / "Sem-Frescura":** O processo é puramente raw 1:1, copiando integralmente a imagem de saída de forma imediata (sem frame-buffer extra). Não introduz recursos virtuais tipo Lossless Scaling ou "Upscalers Interpolados de IA", favorecendo latência zero em troca de efeitos cosméticos.
+*   **Uso Locar/Modular:** O fluxo captura o buffer alocado fisicamente direto do barramento da GPU. Sua excelência e estabilidade dependem de conexão estrita via placa gráfica em modo local (Cabo HDMI / DP / Display Virtual). Este não é um app de cast para a rede (Wi-Fi/LAN).
+
 ---
 
 ## 📁 Estrutura
@@ -155,7 +166,7 @@ O **SpecularLatens** é totalmente portátil. O executável gerado em `bin/Specu
 ```
 SpecularLatens/
 ├── src/
-│   └── main.cpp        # Código-fonte completo (~500 linhas)
+│   └── main.cpp        # Código-fonte completo
 ├── bin/                # Executável gerado pelo build
 ├── build.bat           # Script de build automático (MSVC)
 ├── CMakeLists.txt      # Build alternativo via CMake

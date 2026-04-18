@@ -26,3 +26,31 @@
 [01:51:48] EnumerateDisplays: 3 monitores, 2 GPUs.
 [01:51:51] Saindo: Selecao cancelada.
 [01:51:51] --- SpecularLatens v1.00 Encerrado ---
+[02:21:45] --- SpecularLatens v1.00 Iniciado ---
+[02:21:45] EnumerateDisplays...
+[02:21:45] ResetGraphicsStack: limpando recursos...
+[02:21:45] Adaptador [0]: AMD Radeon RX 6750 XT (VRAM: 12242 MB, Flags: 0x0)
+[02:21:45]   Saida [0]: \\.\DISPLAY1 (1920x1080)
+[02:21:45]   Saida [1]: \\.\DISPLAY2 (2560x1600)
+[02:21:45]   Saida [2]: \\.\DISPLAY13 (3840x2160)
+[02:21:45] Adaptador [1]: AMD Radeon(TM) Graphics (VRAM: 485 MB, Flags: 0x0)
+[02:21:45] Adaptador [2]: AMD Radeon RX 6750 XT (VRAM: 12242 MB, Flags: 0x0)
+[02:21:45]   -> FILTRADO (sw=0 basic=0 remote=0 virtual=0 dup=1)
+[02:21:45] Adaptador [3]: Microsoft Basic Render Driver (VRAM: 0 MB, Flags: 0x2)
+[02:21:45]   -> FILTRADO (sw=1 basic=1 remote=0 virtual=0 dup=0)
+[02:21:45] EnumerateDisplays: 3 monitores, 2 GPUs.
+[02:21:45] LoadSettings: vsync=1 cursor=1 fps=240 key=27 gpu=-1 priority=1 lowlat=0 src=2 dst=0
+[02:21:45] EnumerateDisplays...
+[02:21:45] ResetGraphicsStack: limpando recursos...
+[02:21:45] Adaptador [0]: AMD Radeon RX 6750 XT (VRAM: 12242 MB, Flags: 0x0)
+[02:21:45]   Saida [0]: \\.\DISPLAY1 (1920x1080)
+[02:21:45]   Saida [1]: \\.\DISPLAY2 (2560x1600)
+[02:21:45]   Saida [2]: \\.\DISPLAY13 (3840x2160)
+[02:21:45] Adaptador [1]: AMD Radeon(TM) Graphics (VRAM: 485 MB, Flags: 0x0)
+[02:21:45] Adaptador [2]: AMD Radeon RX 6750 XT (VRAM: 12242 MB, Flags: 0x0)
+[02:21:45]   -> FILTRADO (sw=0 basic=0 remote=0 virtual=0 dup=1)
+[02:21:45] Adaptador [3]: Microsoft Basic Render Driver (VRAM: 0 MB, Flags: 0x2)
+[02:21:45]   -> FILTRADO (sw=1 basic=1 remote=0 virtual=0 dup=0)
+[02:21:45] EnumerateDisplays: 3 monitores, 2 GPUs.
+[02:21:48] Saindo: Selecao cancelada.
+[02:21:48] --- SpecularLatens v1.00 Encerrado ---
