@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SpecularLatens (ScreenMirror) - Zero-Latency Mirroring</title>
+    <meta name="description" content="Espelhamento de tela com baixíssima latência via DXGI Desktop Duplication API + Direct3D 11. O clone visual perfeito, sem uso de CPU.">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="assets/css/style.css">
+    <link rel="icon" type="image/x-icon" href="assets/images/favicon.ico">
+</head>
+<body>
+    <!-- Background Elements -->
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+
+    <header class="glass-nav">
+        <div class="container">
+            <h1 class="logo">Specular<span>Latens</span></h1>
+            <nav>
+                <a href="#about">Sobre</a>
+                <a href="#comparison">Comparação CS2</a>
+                <a href="#specs">Especificações</a>
+                <a href="https://github.com/plenoryan/SpecularLatens" target="_blank" class="btn btn-outline">GitHub</a>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+        <!-- Hero Section -->
+        <section class="hero container">
+            <div class="hero-content">
+                <h2>Espelhamento Visual de <span class="highlight">Latência Zero</span></h2>
+                <p>Captura virtual e escala acelerada por GPU usando <strong>DXGI Desktop Duplication + Direct3D 11</strong>. Traga as resoluções absurdas do seu Virtual Display Driver (VDD) para o seu monitor físico sem perda de frames e com zero consumo de CPU.</p>
+                <div class="hero-buttons">
+                    <a href="https://github.com/plenoryan/SpecularLatens/releases" target="_blank" class="btn btn-primary">Baixar Arquivo Completo (v2.4)</a>
+                    <a href="#comparison" class="btn btn-secondary">Ver a Magia</a>
+                </div>
+            </div>
+        </section>
+
+        <!-- Before/After Slider Section -->
+        <section id="comparison" class="showcase container">
+            <div class="section-title">
+                <h2>Batalha de Resolução: <span class="highlight">CS2 Test</span></h2>
+                <p>Arraste a linha para comparar o CS2 renderizado nativamente em 1080p contra o CS2 executado nativamente em 4K no VDD e transferido pelo SpecularLatens para a mesma tela.</p>
+            </div>
+            
+            <div class="slider-container">
+                <div class="slider-image slider-image-before">
+                    <img src="assets/images/before-1080p.png" alt="Nativo 1080p Preset Máximo">
+                    <div class="image-label label-before">1080p Nativo</div>
+                </div>
+                <div class="slider-image slider-image-after">
+                    <img src="assets/images/after-4k.png" alt="4K Nativo VDD Espelhado">
+                    <div class="image-label label-after">4K VDD Espelhado</div>
+                </div>
+                <div class="slider-handle">
+                    <div class="slider-line"></div>
+                    <div class="slider-button">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Features / Specs Section -->
+        <section id="specs" class="specs-section container">
+            <div class="section-title">
+                <h2>O Verdadeiro <span class="highlight">"Dumb Mirror"</span></h2>
+                <p>Desenhado unicamente para o ecossistema local do seu PC. Sem frames perdidos. Sem latência de rede.</p>
+            </div>
+
+            <div class="specs-grid">
+                <!-- Spec Card 1 -->
+                <div class="spec-card glass">
+                    <div class="icon">🚀</div>
+                    <h3>Eficiência Zero-Copy</h3>
+                    <p>Ao invés de codificar vídeo (NVENC/AMF) ou processar dados pela placa mãe, o D3D11 cria atalhos visuais puramente através de shaders transparentes com 0% de sobrecarga em 4K na CPU.</p>
+                </div>
+                
+                <!-- Spec Card 2 -->
+                <div class="spec-card glass">
+                    <div class="icon">✨</div>
+                    <h3>Raw Espelhamento (1:1)</h3>
+                    <p>O que sai sai. Diferente do Lossless Scaling, nós não inventamos IA de "Frame Generation". É uma cópia mecânica hiper rápida.</p>
+                </div>
+                
+                <!-- Spec Card 3 -->
+                <div class="spec-card glass">
+                    <div class="icon">🔈</div>
+                    <h3>Sincronia VDD Nativa</h3>
+                    <p>Focamos 100% no vídeo com rastreio híbrido de cursor de hardware e software. O áudio e a fidelidade ficam garantidos pelo sistema com a utilização conjunta via Virtual Display Driver (VDD).</p>
+                </div>
+                
+                <!-- Spec Card 4 -->
+                <div class="spec-card glass limitation">
+                    <div class="icon">⚠️</div>
+                    <h3>Apenas 8-bit SDR</h3>
+                    <p>Ele se recusa a ter "frescuras". A arquitetura lê SDR (`B8G8R8A8_UNORM`). Sinais 4K HDR nativos terão a cor lavada. O objetivo é fps brutal local (não é app de cast via Wi-Fi).</p>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="glass-nav">
+        <div class="container footer-content">
+            <p><strong>SpecularLatens (ScreenMirror)</strong> &copy; 2026. Feito com C++, D3D11 e DXGI.</p>
+            <div class="footer-links">
+                <a href="https://github.com/plenoryan/SpecularLatens" target="_blank">Código Fonte</a>
+            </div>
+        </div>
+    </footer>
+
+    <script src="assets/js/script.js"></script>
+</body>
+</html>
