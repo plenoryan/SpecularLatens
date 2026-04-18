@@ -29,8 +29,14 @@ document.addEventListener('DOMContentLoaded', () => {
         imageBefore.style.clipPath = `inset(0 ${100 - currentPercentage}% 0 0)`;
     }
 
+    // Prevent Right Click and Native Drag
+    sliderContainer.addEventListener('contextmenu', (e) => e.preventDefault());
+    sliderContainer.addEventListener('dragstart', (e) => e.preventDefault());
+
     // Mouse events
     sliderContainer.addEventListener('mousedown', (e) => {
+        if (e.button !== 0) return; // Only process left clicks
+        e.preventDefault(); // Prevents selection
         isDragging = true;
         updateSliderPosition(e.clientX);
     });
