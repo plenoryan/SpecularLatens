@@ -198,6 +198,8 @@ nav a:hover { color: var(--accent); }
     overflow: hidden;
     box-shadow: 0 20px 40px rgba(0,0,0,0.5);
     border: 1px solid var(--glass-border);
+    user-select: none;
+    -webkit-user-select: none;
 }
 
 .slider-image {
@@ -214,6 +216,9 @@ nav a:hover { color: var(--accent); }
     height: 100%;
     object-fit: cover;
     display: block;
+    user-select: none;
+    -webkit-user-drag: none;
+    pointer-events: none;
 }
 
 /* The element on top that gets clipped */
